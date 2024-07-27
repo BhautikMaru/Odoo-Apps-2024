@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="0">
+
+        <!-- Define module category for Shopify User Management -->
+        <record id="module_shopify_user_management" model="ir.module.category">
+            <field name="name">Shopify User Management</field>
+            <field name="description">Category for shopify user management related groups</field>
+            <field name="sequence">10</field>
+        </record>
+
+        <!-- Define group for Shopify Manager -->
+        <record id="group_shopify_manager" model="res.groups">
+            <field name="name">Shopify Manager</field>
+            <field name="category_id" ref="module_shopify_user_management"/>
+            <field name="comment">Group for managing Shopify connectors</field>
+        </record>
+
+        <!-- Define access rights for Shopify Connector model -->
+        <record id="model_shopify_connector_access" model="ir.model.access">
+            <field name="name">Access Shopify Connector</field>
+            <field name="model_id" ref="model_shopify_connector"/>
+            <field name="group_id" ref="group_shopify_manager"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="True"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="True"/>
+        </record>
+
+        <!-- Define multi-company rule for Shopify Connector -->
+        <record id="rcs_shopify_connector_multi_company_rule" model="ir.rule">
+            <field name="name">Shopify Multi Company</field>
+            <field name="model_id" ref="model_shopify_connector"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">['|',('company_id','=',False),('company_id','in',company_ids)]</field>
+        </record>
+
+        <!-- Define multi-company rule for Shopify Queue Data -->
+        <record id="rcs_model_shopify_queue_data_multi_company_rule" model="ir.rule">
+            <field name="name">shopify queue data </field>
+            <field name="model_id" ref="model_shopify_queue"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">['|',('company_id','=',False),('company_id','in',company_ids)]</field>
+        </record>
+
+        <!-- Define multi-company rule for Shopify Sale Order Process Configuration -->
+         <record id="rcs_model_rcs_shopify_sale_order_process_configuration_multi_company_rule" model="ir.rule">
+            <field name="name">Sale auto workflow configuration</field>
+            <field name="model_id" ref="model_shopify_sale_order_process_configuration"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">['|',('company_id','=',False),('company_id','in',company_ids)]</field>
+        </record>
+
+        <!-- Define multi-company rule for Sale Order Automation -->
+         <record id="rcs_model_rcs_sale_order_automation_multi_company_rule" model="ir.rule">
+            <field name="name">shopify sale order automation</field>
+            <field name="model_id" ref="model_sale_order_automation"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">['|',('company_id','=',False),('company_id','in',company_ids)]</field>
+        </record>
+    </data>
+</odoo>

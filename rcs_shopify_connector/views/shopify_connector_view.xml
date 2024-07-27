@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--Tree View-->
+    <record id="rcs_shopify_connector_tree_view" model="ir.ui.view">
+        <field name="name">shopify.connector.tree.view</field>
+        <field name="model">shopify.connector</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="name"/>
+                <field name="company_id"/>
+                <field name="state" widget="badge"
+                       decoration-info="state == 'draft'"
+                       decoration-primary="state == 'integrated'"
+                       decoration-danger="state == 'error'"/>
+            </tree>
+        </field>
+    </record>
+
+    <!--Search View-->
+    <record id="rcs_shopify_connector_search_view" model="ir.ui.view">
+        <field name="name">shopify.connector.search.view</field>
+        <field name="model">shopify.connector</field>
+        <field name="type">search</field>
+        <field name="arch" type="xml">
+            <search string="Shopify Connector">
+                <field name="name"/>
+                <filter name="archive" string="Archived" domain="[('active','=',False)]"/>
+                <group expand="0" string="Group By...">
+                    <filter name="warehouse" string="Warehouse" icon="terp-personal" context="{'group_by':'warehouse_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!--Form View-->
+    <record id="rcs_shopify_connector_form_view" model="ir.ui.view">
+        <field name="name">shopify.connector.form.view</field>
+        <field name="model">shopify.connector</field>
+        <field name="arch" type="xml">
+            <form string="Shopify Connector"  duplicate="0">
+                <header>
+                    <button name="shopify_connection_action" string="Test Connection" class="btn oe_highlight"
+                            icon="fa-play" type="object" invisible="state != 'draft'"/>
+                    <button name="reset_to_draft_connection" string="Reset to Draft" class="btn oe_highlight"
+                            icon="fa-undo" type="object"
+                            invisible="state in ['draft']"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,integrated,error"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <b>
+                            <label for="name" string="Connector Name :"/>
+                        </b>
+                        <h1>
+                            <field name="name" placeholder="Connector Name" readonly="state in ['integrated','error']"/>
+                        </h1>
+                    </div>
+                    <notebook>
+                        <page string="Store Setup" name="store_setup">
+                            <group>
+                                <group>
+                                    <field name="shopify_api_key" readonly="state in ['integrated','error']"/>
+                                    <field name="shopify_api_secret_key" password="1" readonly="state in ['integrated','error']"/>
+                                    <field name="shopify_access_token" />
+                                </group>
+                                <group>
+                                    <field name="shopify_host" readonly="state in ['integrated','error']"/>
+                                    <field name="version_control" widget="selection" readonly="state in ['integrated','error']"/>
+                                    <field name="shopify_store_time_zone"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Common Setup" name="common_setup">
+                            <group>
+                                <group>
+                                    <field name="company_id" readonly="state in ['integrated','error']"/>
+                                    <field name="currency_id" readonly="state in ['integrated','error']"/>
+                                </group>
+                                <group>
+                                    <field name="warehouse_id" readonly="state in ['integrated','error']"/>
+                                    <field name="location_id" readonly="state in ['integrated','error']"/>
+                                    <field name="lang_id" readonly="state in ['integrated','error']"/>
+                                </group>
+                            </group>
+                        </page>
+                         <page string="Order Process Setup" name="Order_Process_setup">
+                            <group>
+                                <field name="shopify_sale_order_process_ids" nolabel="1" colspan="2" readonly="state in 'error'">
+                                    <tree editable="bottom" delete="True">
+<!--                                        <field name="account_payment_term_id"/>-->
+<!--                                        <field name="rcs_shopify_payment_gateway_id"-->
+<!--                                               options="{'no_create':True,'no_create_edit': True}"-->
+<!--                                               domain="[('multi_shopify_connector_id' ,'=', parent.id)]"/>-->
+                                        <field name="shopify_order_financial_status"/>
+                                        <field name="rcs_sale_order_automation_id"/>
+                                    </tree>
+                                </field>
+                            </group>
+                        </page>
+                        <page string="Webhook Setup">
+                            <group>
+                                <field name="shopify_webhook_ids" nolabel="1" colspan="2" readonly="state in 'error'">
+                                    <tree editable="bottom">
+                                        <field name="name" required="1"/>
+                                        <field name="operations" required="1"/>
+                                        <field name="state" required="1"/>
+                                        <field name="base_url" readonly="1"/>
+                                    </tree>
+                                </field>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                 <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="rcs_shopify_connector_action" model="ir.actions.act_window">
+        <field name="name">Shopify Integration</field>
+        <field name="res_model">shopify.connector</field>
+        <field name="view_mode">tree,form,kanban</field>
+        <field name="view_id" ref="rcs_shopify_connector_tree_view"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_neutral_face">
+                Create a shopify instance, the first step of a shopify integration!
+            </p><p>
+                Once the shopify instance is integrated, you will abel to perfrom all shopify opeartions.
+            </p>
+        </field>
+    </record>
+
+    <menuitem id="rcs_shopify_connector_configuration_menu" name="Shopify Integration"
+              parent="rcs_shopify_configuration_main_menu" sequence="1"
+              action="rcs_shopify_connector_action"/>
+</odoo>

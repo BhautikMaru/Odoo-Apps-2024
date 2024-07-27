@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="rcs_shopify_operations_form_view" model="ir.ui.view">
+        <field name="name">shopify.operations.form.view</field>
+        <field name="model">shopify.operations.wizard</field>
+        <field name="arch" type="xml">
+            <form>
+                <group>
+                    <group>
+                        <field name="shopify_connector_id"
+                               options="{'no_create':True,'no_create_edit': True,'no_open': True}" required="1"/>
+                    </group>
+                    <group>
+                        <field name="shopify_operations" required="1"/>
+                    </group>
+                </group>
+                <notebook>
+                    <page invisible="shopify_operations not in ['import_unshipped_orders','import_shipped_orders','import_orders']"
+                          string="Operations">
+                        <group string="Select Date to import orders">
+                            <group>
+                                <field name="start_date"/>
+                            </group>
+                            <group>
+                                <field name="end_date"/>
+                            </group>
+                        </group>
+                    </page>
+                    <page invisible="shopify_operations not in ['import_specific_order','import_specific_product','import_specific_customer']"
+                          string="Operations">
+                        <group>
+                            <field name="import_specific_id"/>
+                        </group>
+                        <div class="alert alert-warning oe_edit_only" role="alert">
+                            <p>Note :
+                                <span class="o_vat_label">To input multiple IDs, please separate them with
+                                    commas (e.g., 123xxxx, 456xxx).
+                                </span>
+                            </p>
+                        </div>
+                    </page>
+                </notebook>
+
+                <footer>
+                    <button name="shopify_perform_operations_action" string="Perform Operation" class="oe_highlight"
+                            type="object"/>
+                    <button string="Cancel" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="rcs_shopify_operations_wizard_action" model="ir.actions.act_window">
+        <field name="name">Shopify Operations</field>
+        <field name="res_model">shopify.operations.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="view_id" ref="rcs_shopify_operations_form_view"/>
+    </record>
+
+    <menuitem id="rcs_shopify_operations_menu" name="Shopify Operations"
+              parent="rcs_shopify_operations_main_menu" sequence="1"
+              action="rcs_shopify_operations_wizard_action"/>
+</odoo>

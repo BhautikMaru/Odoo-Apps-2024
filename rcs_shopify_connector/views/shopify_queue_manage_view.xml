@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!--Tree view of customer data queue-->
+    <record id="shopify_synced_data_tree_view_rcs" model="ir.ui.view">
+        <field name="name">Shopify Synced Data</field>
+        <field name="model">shopify.queue</field>
+        <field name="arch" type="xml">
+            <tree create="0" default_order="name desc" sample="1">
+                <field name="name"/>
+                <field name="shopify_instance_id"/>
+                <field name="create_date"/>
+                <field name="state" decoration-success="state == 'completed'" decoration-info="state == 'draft'"
+                       decoration-warning="state == 'partially_completed'" decoration-danger="state == 'failed'"
+                       widget="badge"/>
+            </tree>
+        </field>
+    </record>
+
+    <!--Form view of customer data queue-->
+    <record id="shopify_synced_data_form_view_rcs" model="ir.ui.view">
+        <field name="name">Shopify Synced Data</field>
+        <field name="model">shopify.queue</field>
+        <field name="arch" type="xml">
+            <form string="Shopify Synced Customer Data" create="0" duplicate="0" edit="0">
+                <header>
+                    <button name="process_queue_manually" string="Process Queue Manually" type="object"
+                            invisible="state == 'completed'" class="btn-primary"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="open_record_queue_data" type="object" class="oe_stat_button"
+                                icon="fa-database" invisible="total_record_count == 0">
+                            <field name="total_record_count" widget="statinfo" string="Records"/>
+                        </button>
+                        <button name="open_draft_queue_data" type="object" class="oe_stat_button"
+                                icon="fa-info" invisible="draft_state_count == 0">
+                            <field name="draft_state_count" widget="statinfo" string="Draft"/>
+                        </button>
+                        <button name="open_done_queue_data" type="object" class="oe_stat_button"
+                                icon="fa-check" invisible="done_state_count == 0">
+                            <field name="done_state_count" widget="statinfo" string="Done"/>
+                        </button>
+                        <button name="open_cancel_queue_data" type="object" class="oe_stat_button"
+                                icon="fa-ban"  invisible="cancel_state_count == 0">
+                            <field name="cancel_state_count" widget="statinfo" string="Cancelled"/>
+                        </button>
+                    </div>
+                    <div class="oe_left" style="width: 500px;">
+                        <div class="oe_title" style="width: 390px;">
+                            <label class="oe_edit_only" for="name" string="Name"/>
+                            <h1>
+                                <field name="name" class="oe_inline" readonly="1"/>
+                            </h1>
+                        </div>
+                    </div>
+                    <group name="basic_info">
+                        <group>
+                            <field name="shopify_instance_id" readonly="1"/>
+                            <field name="company_id" readonly="1"/>
+                            <field name="create_date" string="Created On" readonly="1"/>
+
+                        </group>
+                        <group>
+                            <field name="model_selection" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Shopify Customer" name="shopify_customer">
+                            <field name="shopify_synced_queue_line_ids" readonly="True">
+                                <tree create="false" delete="false"
+                                      decoration-danger="state=='failed'"
+                                      decoration-success="state=='done'"
+                                      decoration-info="state=='draft'">
+                                    <field name="shopify_data_id"/>
+                                    <field name="name"/>
+                                    <field name="write_date"/>
+                                    <field name="state"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!--Action of customer data queue-->
+    <record id="action_shopify_synced_customer_data" model="ir.actions.act_window">
+        <field name="name">Shopify Customer Queues</field>
+        <field name="res_model">shopify.queue</field>
+        <field name="view_id" ref="shopify_synced_data_tree_view_rcs"/>
+        <field name="domain">[('model_selection','=','res_partner')]</field>
+        <field name="help" type="html">
+            <div class="oe_empty_shopify_instance">
+                <p>
+                    <b>Welcome to Shopify Customer Queues</b>
+                </p>
+                <p>
+                    This view displays queues for syncing customer data from Shopify. Currently, there is no synced customer data available. You can initiate synchronization by configuring the Shopify integration settings.
+                </p>
+            </div>
+        </field>
+    </record>
+
+    <!--Action of Product data queue-->
+    <record id="action_shopify_synced_Product_data" model="ir.actions.act_window">
+        <field name="name">Shopify Product Queues</field>
+        <field name="res_model">shopify.queue</field>
+        <field name="view_id" ref="shopify_synced_data_tree_view_rcs"/>
+        <field name="domain">[('model_selection','=','product')]</field>
+        <field name="help" type="html">
+            <div class="oe_empty_shopify_instance">
+                <p>
+                    <b>Welcome to Shopify Product Queues</b>
+                </p>
+                <p>
+                    This view shows queues for syncing product data from Shopify. Currently, there is no synced product data available. You can start synchronization by configuring the Shopify integration settings.
+                </p>
+            </div>
+        </field>
+    </record>
+
+    <!--Action of sale orders data queue-->
+    <record id="action_shopify_synced_sale_order_data" model="ir.actions.act_window">
+        <field name="name">Shopify Sale Order Queues</field>
+        <field name="res_model">shopify.queue</field>
+        <field name="view_id" ref="shopify_synced_data_tree_view_rcs"/>
+        <field name="domain">[('model_selection','=','sale_order')]</field>
+        <field name="help" type="html">
+            <div class="oe_empty_shopify_instance">
+                <p>
+                    <b>Welcome to Shopify Sale Order Queues</b>
+                </p>
+                <p>
+                    This view manages queues for syncing sale orders from Shopify. Currently, there is no synced sale order data available. To begin synchronization, configure the Shopify integration settings.
+                </p>
+            </div>
+        </field>
+    </record>
+</odoo>

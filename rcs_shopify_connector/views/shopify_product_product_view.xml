@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="rcs_shopify_product_variant_action" model="ir.actions.act_window">
+        <field name="name">Shopify Variants</field>
+        <field name="res_model">product.product</field>
+        <field name="view_mode">kanban,tree,form,activity</field>
+        <field name="view_id" ref="product.product_product_tree_view"/>
+        <field name="search_view_id" ref="product.product_search_form_view"/>
+        <field name="domain">[('is_shopify_product','=',True)]</field>
+        <field name="help" type="html">
+            <p>
+               Create a new product variant
+            </p>
+            <p>You must define a product for everything you sell, whether it's a physical product, a consumable or a service you offer to customers. The product form contains information to simplify the sale process: price, notes in the quotation, accounting data, procurement methods, etc.</p>
+        </field>
+    </record>
+
+    <record id="shopify_product_product_view_form" model="ir.ui.view">
+        <field name="name">product.product.form.inherit.shopify</field>
+        <field name="model">product.product</field>
+        <field name="inherit_id" ref="product.product_normal_form_view"/>
+        <field name="arch" type="xml">
+             <xpath expr="//notebook" position="inside">
+                    <page string="Shopify" name="shopify_partner">
+                        <group>
+                            <field name="is_shopify_product" readonly="1"/>
+                            <field name="shopify_variant_id" readonly="1"/>
+                            <field name="shopify_instance_id" readonly="1"/>
+                            <field name="inventory_item_id" readonly="1"/>
+                        </group>
+                    </page>
+                </xpath>
+        </field>
+    </record>
+
+    <record id="shopify_attribute_action" model="ir.actions.act_window">
+        <field name="name">Attributes</field>
+        <field name="res_model">product.attribute</field>
+        <field name="domain">[('is_shopify_attribute','=',True)]</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+</odoo>

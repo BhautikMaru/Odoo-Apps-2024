@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<odoo>
+    <!--Search View-->
+    <record id="src_shopify_connector_search_dashboard" model="ir.ui.view">
+        <field name="name">shopify.connector.search.dashboard</field>
+        <field name="model">shopify.connector</field>
+        <field name="type">search</field>
+        <field name="arch" type="xml">
+            <search string="Shopify Connector">
+                <field name="name"/>
+                <filter name="archive" string="Archived" domain="[('active','=',False)]"/>
+            </search>
+        </field>
+    </record>
+
+    <!--Kanban View-->
+    <record id="src_shopify_connector_kanban_dashboard" model="ir.ui.view">
+        <field name="name">shopify.connector.kanban.dashboard</field>
+        <field name="model">shopify.connector</field>
+        <field name="arch" type="xml">
+            <kanban string="Shopify Overview"
+                    class="o_emphasize_colors o_kanban_dashboard o_slide_kanban breadcrumb_item active"
+                    sample="1">
+                <templates>
+                    <t t-name="kanban-box">
+                        <div t-attf-class="oe_kanban_card oe_kanban_global_click">
+                            <div class="row mb-4">
+                                <div class="col-6">
+                                    <strong>
+                                        <span>
+                                            <field name="name"/>
+                                        </span>
+                                    </strong>
+                                </div>
+                                <div class="col-6 text-end">
+                                    <field name="state" widget="label_selection"
+                                           options="{'classes': {'draft': 'info', 'error': 'danger', 'integrated': 'primary'}}"/>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="rcs_shopify_dashboard_action" model="ir.actions.act_window">
+        <field name="name">Shopify Dashboard</field>
+        <field name="res_model">shopify.connector</field>
+        <field name="view_mode">kanban,form</field>
+        <field name="view_id" ref="src_shopify_connector_kanban_dashboard"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_neutral_face">
+                Create a shopify instance, the first step of a shopify integration!
+            </p><p>
+                Once the shopify instance is integrated, you will abel to perfrom all shopify opeartions.
+            </p>
+        </field>
+    </record>
+</odoo>

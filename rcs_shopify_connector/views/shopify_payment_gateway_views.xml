@@ -1,0 +1,66 @@
+<?xml version="1.0" ?>
+<odoo>
+
+    <record id="rcs_shopify_payment_gateway_tree_view" model="ir.ui.view">
+        <field name="name">shopify.payment.gateway.tree.view</field>
+        <field name="model">shopify.payment.gateway</field>
+        <field name="type">tree</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="multi_shopify_connector_id"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="rcs_shopify_payment_gateway_form_view" model="ir.ui.view">
+        <field name="name">shopify.payment.gateway.form.view</field>
+        <field name="model">rcs.shopify.payment.gateway</field>
+        <field name="arch" type="xml">
+            <form string="Payment Gateway">
+                <sheet>
+                    <group name="Payment Gateway">
+                        <group>
+                            <field name="name"/>
+                            <field name="code"/>
+                        </group>
+                        <group>
+                            <field name="multi_shopify_connector_id"
+                                   options="{'no_create':True,'no_create_edit': True}"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="rcs_shopify_payment_gateway_search_view" model="ir.ui.view">
+        <field name="name">rcs.shopify.payment.gateway.search.view</field>
+        <field name="model">rcs.shopify.payment.gateway</field>
+        <field name="type">search</field>
+        <field name="arch" type="xml">
+            <search string="Payment Gateway">
+                <field name="name"/>
+                <field name="code"/>
+                <field name="active" invisible="1"/>
+                <field name="multi_shopify_connector_id"/>
+                <separator/>
+                <filter name="archived" string="Archived" domain="[('active','=',False)]"/>
+                <separator/>
+                <group expand="1" string="Group By">
+                    <filter string="Shopify Connector" name="Instance"
+                            context="{'group_by':'multi_shopify_connector_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+
+    <record id="rcs_shopify_payment_gateway_action" model="ir.actions.act_window">
+        <field name="name">Payment Gateway</field>
+        <field name="res_model">rcs.shopify.payment.gateway</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+</odoo>

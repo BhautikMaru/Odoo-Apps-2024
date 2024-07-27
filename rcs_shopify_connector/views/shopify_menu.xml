@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Main menu for Shopify -->
+    <menuitem id="rcs_shopify_main_menu" name="Shopify" sequence="7" web_icon="rcs_shopify_connector,static/description/shopify_icon.png">
+        <!-- Dashboard menu item -->
+        <menuitem id="rcs_shopify_dashboard_main_menu" action="rcs_shopify_dashboard_action" name="Dashboard" sequence="1"/>
+
+        <!-- Sales menu item -->
+        <menuitem id="rcs_shopify_sales_main_menu" name="Sales" sequence="2"/>
+
+        <!-- Operations menu item -->
+        <menuitem id="rcs_shopify_operations_main_menu" name="Operations" sequence="3"/>
+
+        <!-- Queues menu item -->
+        <menuitem id="rcs_shopify_queue_main_menu" name="Queues" sequence="3"/>
+
+        <!-- Configuration menu item -->
+        <menuitem id="rcs_shopify_configuration_main_menu" name="Configuration" sequence="4"/>
+    </menuitem>
+    <!-- Order Process Configuration under Configuration menu -->
+    <menuitem id="rcs_shopify_sale_order_process_configuration_main_menu" name="Order Process Configuration"
+              parent="rcs_shopify_connector.rcs_shopify_configuration_main_menu"
+              action="rcs_shopify_sale_order_process_configuration_action" sequence="3"/>
+    <!-- WorkFlow Automation under Configuration menu -->
+    <menuitem id="rcs_shopify_sale_order_automation_shopify_main_menu" name="WorkFlow Automation"
+              parent="rcs_shopify_connector.rcs_shopify_configuration_main_menu"
+              action="rcs_sale_order_automation_shopify_action" sequence="5"/>
+    <!-- Product Template under Sales menu -->
+    <menuitem id="rcs_shopify_product_template_main_menu" name="Product"
+              parent='rcs_shopify_connector.rcs_shopify_sales_main_menu'
+              action="rcs_shopify_connector_template_action" sequence="3"/>
+    <!-- Product Variants under Sales menu -->
+    <menuitem id="rcs_shopify_product_variant_main_menu" name="Product Variants"
+              parent="rcs_shopify_connector.rcs_shopify_sales_main_menu"
+              action="rcs_shopify_product_variant_action" sequence="3"/>
+     <!-- Attributes under Sales menu -->
+    <menuitem id="rcs_shopify_attributes_main_menu" name="Attributes"
+              parent="rcs_shopify_connector.rcs_shopify_sales_main_menu"
+              action="shopify_attribute_action" sequence="4"/>
+    <!-- Customer Queue under Queues menu -->
+    <menuitem id="rcs_shopify_queue_data_customer_main_menu" name="Customer Queue"
+              parent="rcs_shopify_connector.rcs_shopify_queue_main_menu"
+              action="action_shopify_synced_customer_data" sequence="1"/>
+    <!-- Product Queue under Queues menu -->
+    <menuitem id="rcs_shopify_queue_data_product_main_menu" name="Product Queue"
+              parent="rcs_shopify_connector.rcs_shopify_queue_main_menu"
+              action="action_shopify_synced_Product_data" sequence="1"/>
+    <!-- Sale Order Queue under Queues menu -->
+    <menuitem id="rcs_shopify_queue_data_sale_order_main_menu" name="Sale Order Queue"
+              parent="rcs_shopify_connector.rcs_shopify_queue_main_menu"
+              action="action_shopify_synced_sale_order_data" sequence="3"/>
+    <!-- Common Log menu under Configuration menu -->
+    <menuitem id="menu_common_log" name="Common Logs"
+              parent="rcs_shopify_configuration_main_menu"
+              action="rcs_process_logs.action_common_log" sequence="2"/>
+</odoo>

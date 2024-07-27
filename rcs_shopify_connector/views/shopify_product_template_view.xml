@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+
+    <record id="rcs_shopify_connector_template_action" model="ir.actions.act_window">
+        <field name="name">Shopify Templates</field>
+        <field name="res_model">product.template</field>
+        <field name="view_mode">kanban,tree,form,activity</field>
+        <field name="view_id" ref="product.product_template_kanban_view"/>
+        <field name="search_view_id" ref="product.product_template_search_view"/>
+        <field name="domain">[('is_shopify_product','=',True)]</field>
+        <field name="help" type="html">
+            <p>
+               Create a new product
+            </p>
+            <p>You must define a product for everything you sell or purchase, whether it's a storable product, a consumable or a service.</p>
+        </field>
+    </record>
+
+    <record id="shopify_product_template_view_form" model="ir.ui.view">
+        <field name="name">product.template.form.inherit.shopify</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_only_form_view"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//sheet/div[@name='button_box']" postion="inside">
+                <button name="open_product_logs" type="object" class="oe_stat_button" icon="fa-history"
+                        >
+<!--                    invisible="log_count == 0"-->
+                    <field name="log_count" widget="statinfo" string="Product Logs"/>
+                </button>
+            </xpath>
+
+             <xpath expr="//notebook" position="inside">
+                    <page string="Shopify" name="shopify_partner">
+                        <group>
+                            <field name="is_shopify_product" readonly="1"/>
+                            <field name="shopify_product_id" readonly="1"/>
+                            <field name="shopify_instance_id" readonly="1"/>
+                            <field name="inventory_item_id" invisible="product_variant_count &gt; 1 or (product_variant_count == 0 and valid_product_template_attribute_line_ids)" readonly="1"/>
+                        </group>
+                    </page>
+                </xpath>
+        </field>
+    </record>
+
+</odoo>

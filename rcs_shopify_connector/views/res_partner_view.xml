@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="rcs_shopify_customer_action" model="ir.actions.act_window">
+        <field name="name">Shopify Customer</field>
+        <field name="res_model">res.partner</field>
+        <field name="domain">[('is_shopify_customer','=',True)]</field>
+        <field name="view_mode">kanban,tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create a new contract
+            </p>
+        </field>
+    </record>
+
+    <menuitem id="rcs_shopify_customer_menu" name="Customers"
+              parent="rcs_shopify_sales_main_menu" sequence="1"
+              action="rcs_shopify_customer_action"/>
+
+    <record id="view_res_partner_shopify_form" model="ir.ui.view">
+        <field name="name">res.partner.shopify.inherit</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet/div[@name='button_box']" postion="inside">
+                <button name="open_customer_logs" type="object" class="oe_stat_button" icon="fa-history"
+                        >
+<!--                    invisible="log_count == 0"-->
+                    <field name="log_count" widget="statinfo" string="Customer Logs"/>
+                </button>
+            </xpath>
+            <xpath expr="//notebook" position="inside">
+                <page string="Shopify" name="shopify_partner">
+                    <group>
+                        <field name="is_shopify_customer" readonly="1"/>
+                        <field name="shopify_customer_id" readonly="1"/>
+                        <field name="shopify_instance_id" readonly="1"/>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

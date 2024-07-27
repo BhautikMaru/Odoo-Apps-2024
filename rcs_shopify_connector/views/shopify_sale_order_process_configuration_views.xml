@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+	
+	 <record id="rcs_shopify_sale_order_process_configuration_tree_view" model="ir.ui.view">
+        <field name="name">shopify.sale.order.process.configuration.tree.view</field>
+        <field name="model">shopify.sale.order.process.configuration</field>
+        <field eval="16" name="priority"/>
+        <field name="type">tree</field>
+        <field name="arch" type="xml">
+            <tree editable="top">
+                <field name="multi_shopify_connector_id" required="1"  domain="[('active','=',True)]" options="{'no_create':True}"/>
+<!--                <field name="rcs_shopify_payment_gateway_id" required="1" domain="[('multi_shopify_connector_id','=',multi_shopify_connector_id)]"  options="{'no_create':True}" />-->
+<!--                <field name="account_payment_term_id" required="1"/>-->
+                <field name="shopify_order_financial_status" required="1"/>
+                <field name="rcs_sale_order_automation_id" required="1"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="rcs_shopify_sale_order_process_configuration_form_view" model="ir.ui.view">
+        <field name="name">shopify.sale.order.process.configuration.form.view</field>
+        <field name="model">shopify.sale.order.process.configuration</field>
+        <field eval="16" name="priority"/>
+        <field name="arch" type="xml">
+            <form string="Shopify Order Process Configuration">
+                <group>
+                    <group>
+<!--                        <field name="rcs_shopify_payment_gateway_id" required="1"   domain="[('multi_shopify_connector_id','=',multi_shopify_connector_id)]"/>-->
+                       	<field name="multi_shopify_connector_id" required="1"   domain="[('active','=',True)]" options="{'no_create':True,'no_create_edit': True}"  />
+                    </group>
+                    <group>
+<!--                    	<field name="account_payment_term_id" required="1"/>-->
+                        <field name="shopify_order_financial_status" required="1"/>
+                    </group>
+                </group>
+            </form>
+        </field>
+    </record>
+
+   
+    <record id="rcs_shopify_sale_order_process_configuration_search_view" model="ir.ui.view">
+        <field name="name">shopify.sale.order.process.configuration</field>
+        <field name="model">shopify.sale.order.process.configuration</field>
+        <field name="arch" type="xml">
+            <search string="Shopify Order Process Configuration Filter">
+                <field name="rcs_shopify_payment_gateway_id"/>
+                <separator/>
+                <filter name="archived" string="Archived" domain="[('active','=',False)]"/>
+                <separator/>
+                <group expand="0" string="Group By">
+                    <filter string="Instance" name="group_by_instance"  context="{'group_by': 'multi_shopify_connector_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="rcs_shopify_sale_order_process_configuration_action"  model="ir.actions.act_window">
+        <field name="name">Order Process Configuration</field>
+        <field name="res_model">shopify.sale.order.process.configuration</field>
+        <field name="view_mode">tree,form</field>
+        <field name="view_id" ref="rcs_shopify_sale_order_process_configuration_tree_view"/>
+        <field name="help" type="html">
+            <p>
+                This action allows you to view and configure the process settings for Shopify sale orders.
+            </p>
+            <p>
+                Use the tree view to see all configurations at once and the form view to edit specific details.
+            </p>
+        </field>
+    </record>
+
+</odoo>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<odoo>
+    <data>
+        <!-- Sequences for customer data queue-->
+        <record id="seq_synced_shopify_customer_sequence" model="ir.sequence">
+            <field name="name">Shopify Customer Queue Sequence</field>
+            <field name="code">shopify.queue.customer</field>
+            <field name="prefix">CQ</field>
+            <field name="padding">6</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
+        <record id="seq_synced_shopify_product_sequence" model="ir.sequence">
+            <field name="name">Shopify product Queue Sequence</field>
+            <field name="code">shopify.queue.product</field>
+            <field name="prefix">PQ</field>
+            <field name="padding">6</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
+        <record id="seq_synced_shopify_sale_order_sequence" model="ir.sequence">
+            <field name="name">Shopify sale order Queue Sequence</field>
+            <field name="code">shopify.queue.order</field>
+            <field name="prefix">SOQ</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

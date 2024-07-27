@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="rcs_sale_order_automation_tree_view" model="ir.ui.view">
+        <field name="name">sale.order.automation.tree.view</field>
+        <field name="model">sale.order.automation</field>
+        <field eval="16" name="priority"/>
+        <field name="type">tree</field>
+        <field name="arch" type="xml">
+            <tree string="Sale WorkFlow Automation">
+                <field name="name"/>
+                <field name="is_confirm_order"/>
+                <field name="is_create_invoice"/>
+                <field name="is_register_payment"/>
+                <field name="is_lock_order"/>
+                <field name="is_order_date_same_as_invoice_date"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="rcs_sale_order_automation_form_view" model="ir.ui.view">
+        <field name="name">sale.order.automation.from.view</field>
+        <field name="model">sale.order.automation</field>
+        <field eval="16" name="priority"/>
+        <field name="type">form</field>
+        <field name="arch" type="xml">
+            <form string="Sale WorkFlow Automation">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name" required="1"/>
+                        </group>
+                        <group>
+                            <field name="journal_id"
+                                   invisible = "is_register_payment in [False]"
+                                   required="('is_register_payment','!=',False)"
+                                   domain="[('type','in',['bank','cash'])]"/>
+                            <field name="inbound_payment_method_line_id"
+                                   invisible = "is_register_payment in [False]"
+                                   required = "('is_register_payment','!=',False)"
+                                   domain=""/>
+                            <field name="sale_journal_id" required="1"/>
+                        </group>
+                    </group>
+                    <group string="Workflow Option">
+                        <group>
+                            <field name="is_confirm_order" widget="boolean_toggle"/>
+                            <field name="is_lock_order" widget="boolean_toggle"/>
+                            <field name="is_create_invoice" invisible="is_confirm_order in [False]" widget="boolean_toggle"/>
+                            <field name="is_validate_invoice" invisible = "is_create_invoice in [False]" widget="boolean_toggle"/>
+                        </group>
+                        <group>
+                            <field name="is_register_payment" invisible="is_validate_invoice in [False]" widget="boolean_toggle"/>
+                            <field name="is_order_date_same_as_invoice_date"
+                                   invisible = "is_confirm_order in [False]"
+                                   widget="boolean_toggle"/>
+                        </group>
+                    </group>
+                    <group string="Picking Policy">
+                        <field name="picking_policy" required="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="rcs_sale_order_automation_shopify_action" model="ir.actions.act_window">
+        <field name="name">WorkFlow Automation</field>
+        <field name="res_model">sale.order.automation</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p>
+                This action provides access to the workflow automation settings for sale orders.
+            </p>
+            <p>
+                Use the tree view to see all automation configurations and the form view to modify settings.
+            </p>
+        </field>
+    </record>
+
+    <record id="view_location_form_inherit_shopify" model="ir.ui.view">
+        <field name="name">stock.location.form.inherit.shopify</field>
+        <field name="model">stock.location</field>
+        <field name="inherit_id" ref="stock.view_location_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='additional_info']" position="after">
+                <group string="Shopify Information">
+                    <field name="shopify_location_id"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>

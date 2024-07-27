@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--Tree view-->
+    <record id="rcs_shopify_sales_order_tree_view" model="ir.ui.view">
+        <field name="name">rcs.shopify.sales.order.tree.view</field>
+        <field name="model">sale.order</field>
+        <field name="arch" type="xml">
+            <tree create="false" sample="1" decoration-muted="state == 'cancel'">
+                <field name="name" readonly="1" decoration-bf="1"/>
+                <field name="date_order" widget="date" optional="show" readonly="state in ['cancel', 'sale']"/>
+                <field name="partner_id"/>
+                <field name="user_id" widget="many2one_avatar_user" optional="show"/>
+                <field name="activity_ids" widget="list_activity" optional="show"/>
+                <field name="company_id"/>
+                <field name="amount_total" sum="Total Tax Included"
+                       widget="monetary"
+                       decoration-bf="1"
+                       decoration-info="invoice_status == 'to invoice'"
+                       optional="show"/>
+                <field name="invoice_status"
+                       decoration-success="invoice_status == 'invoiced'"
+                       decoration-info="invoice_status == 'to invoice'"
+                       decoration-warning="invoice_status == 'upselling'"
+                       widget="badge"
+                       optional="show"/>
+                <field name="state" decoration-success="state == 'sale'"
+                       decoration-info="state == 'draft'"
+                       decoration-primary="state == 'sent'"
+                       widget="badge"
+                       optional="show"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="rcs_shopify_sales_order_form_view" model="ir.ui.view">
+        <field name="name">rcs.shopify.sales.order.form.view</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet/div[@name='button_box']" postion="inside">
+                <button name="open_sale_order_logs" type="object" class="oe_stat_button" icon="fa-history"
+                        invisible="log_count == 0">
+                    <field name="log_count" widget="statinfo" string="Sale Order Logs"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+
+
+    <record id="rcs_shopify_sales_order_action" model="ir.actions.act_window">
+        <field name="name">Shopify Sales Order</field>
+        <field name="res_model">sale.order</field>
+        <field name="domain">[('is_shopify_order','=',True)]</field>
+        <field name="view_mode">tree,form</field>
+        <field name="view_id" ref="rcs_shopify_sales_order_tree_view"/>
+    </record>
+
+    <record id="sale_order_form_sopify" model="ir.ui.view">
+        <field name="name">sale.order.form.shopify</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//page" position="after">
+                <page string="Shopify " name="shopify_order">
+                    <group>
+                        <field name="shopify_order_id" readonly="1"/>
+                        <field name="shopify_instance_id" readonly="1"/>
+                        <field name="is_shopify_order" readonly="1"/>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <menuitem id="rcs_shopify_sales_order_menu" name="Sales Order"
+              parent="rcs_shopify_sales_main_menu" sequence="2"
+              action="rcs_shopify_sales_order_action"/>
+</odoo>
