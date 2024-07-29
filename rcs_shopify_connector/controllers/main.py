@@ -7,18 +7,35 @@ from odoo.http import request
 class Main(http.Controller):
 
     def check_hook_details(self, route):
-        res = request.dispatcher.jsonrequest
+        res = {'id': 7683885039821, 'email': None, 'created_at': '2024-06-25T07:30:29-04:00',
+         'updated_at': '2024-06-25T07:30:29-04:00', 'first_name': 'DEMO', 'last_name': '3',
+         'orders_count': 0,
+         'state': 'disabled', 'total_spent': '0.00', 'last_order_id': None, 'note': '',
+         'verified_email': True,
+         'multipass_identifier': None, 'tax_exempt': False, 'tags': '', 'last_order_name': None,
+         'currency': 'INR', 'phone': None, 'addresses': [
+            {'id': 10296598528205, 'customer_id': 7683885039821, 'first_name': 'DEMO', 'last_name': '3',
+             'company': '', 'address1': '', 'address2': '', 'city': '', 'province': '', 'country': 'India',
+             'zip': '', 'phone': '', 'name': 'DEMO 3', 'province_code': None, 'country_code': 'IN',
+             'country_name': 'India', 'default': True}], 'tax_exemptions': [], 'email_marketing_consent': None,
+         'sms_marketing_consent': None, 'admin_graphql_api_id': 'gid://shopify/Customer/7683885039821',
+         'default_address': {'id': 10296598528205, 'customer_id': 7683885039821, 'first_name': 'DEMO',
+                             'last_name': '3', 'company': '', 'address1': '', 'address2': '', 'city': '',
+                             'province': '', 'country': 'India', 'zip': '', 'phone': '', 'name': 'DEMO 3',
+                             'province_code': None, 'country_code': 'IN', 'country_name': 'India',
+                             'default': True}}
+        # res = request.dispatcher.jsonrequest
         host = request.httprequest.headers.get("X-Shopify-Shop-Domain")
         shopify_instance_id = request.env["shopify.connector"].sudo().with_context(active_test=False).search(
             [("shopify_host", "ilike", host)], limit=1)
         webhook_id = request.env["shopify.webhook"].sudo().search(
             [("base_url", "ilike", route), ("shopify_instance_id", "=", shopify_instance_id.id)], limit=1)
-        if not shopify_instance_id.state == 'fully_integrated' and not shopify_instance_id.active or not webhook_id.state == "active":
+        if not shopify_instance_id.state == 'integrated' or not shopify_instance_id.active or not webhook_id.state == "active":
             res = False
         return res, shopify_instance_id
 
     # Webhook for creating or updating customers in Shopify
-    @http.route(['/rcs_shopify_customer_create_hook', '/rcs_shopify_customer_update_hook'], csrf=False, type='json', auth="public", methods=['POST'])
+    @http.route(['/rcs_shopify_customer_create_hook', '/rcs_shopify_customer_update_hook'], type='http', auth="public", )
     def customer_create_or_update_webhook(self):
         """
             Handle webhook for creating or updating customers in Shopify.

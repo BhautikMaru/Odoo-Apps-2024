@@ -146,6 +146,8 @@ class ShopifyConnector(models.Model):
            Perform action to establish connection with Shopify.
            :return: Notification message for UI indicating success or failure of connection.
         """
+        connector_obj = self.env['shopify.operations.wizard']
+        payment_gateway = self.env["shopify.payment.gateway"]
         self.ensure_one()
         url = self.truncate_shopify_store_url(self.shopify_host)
         headers = {
@@ -164,6 +166,11 @@ class ShopifyConnector(models.Model):
 
                 self.write({'shopify_store_time_zone': shop_data.get('timezone')})
                 self.sync_shopify_currency(shop_data.get('currency'))
+
+                payment_status = connector_obj.truncate_shopify_store_url(self.shopify_host, self, 'orders')
+                patment_urlstatus = f"{payment_status}?status=any&fields=payment_gateway_names&limit=250"
+                payment_gateway.create_shopify_payment_gateway(patment_urlstatus, self)
+
                 return self._create_notification('Success', 'Store %s is successfully connected to Shopify!' % self.name,
                                                  'success')
             else:

@@ -15,7 +15,7 @@
         'views/shopify_dashboard_view.xml',
         'views/shopify_queue_manage_line_view.xml',
         'views/shopify_queue_manage_view.xml',
-        # 'views/shopify_payment_gateway_views.xml',
+        'views/shopify_payment_gateway_views.xml',
         'views/shopify_sale_order_process_configuration_views.xml',
         'views/sale_order_automation_views.xml',
         'views/shopify_product_template_view.xml',

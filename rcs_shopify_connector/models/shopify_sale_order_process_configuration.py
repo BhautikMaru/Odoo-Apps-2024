@@ -34,7 +34,7 @@ class ShopifySaleOrderProcessConfiguration(models.Model):
 
     account_payment_term_id = fields.Many2one('account.payment.term', string='Payment Term', default=_get_default_account_payment_terms)
     multi_shopify_connector_id = fields.Many2one('shopify.connector', string='Multi Shopify Connector')
-    rcs_shopify_payment_gateway_id = fields.Many2one("rcs.shopify.payment.gateway", string="Shopify Payment Gateway", ondelete="restrict")
+    shopify_payment_gateway_id = fields.Many2one("shopify.payment.gateway", string="Shopify Payment Gateway", ondelete="restrict")
     rcs_sale_order_automation_id = fields.Many2one("sale.order.automation", string="WorkFlow Automation")
     company_id = fields.Many2one('res.company', string='Company', default=_get_set_default_company)
 

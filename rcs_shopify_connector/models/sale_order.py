@@ -82,6 +82,8 @@ class SaleOrder(models.Model):
         shopify_connection = self.env['shopify.connector']
         financial_status = order.get('financial_status')
         fulfillment_status = order.get('fulfillment_status')
+        # Fetch automation settings based on financial status and instance
+        automation_settings = self._get_automation_settings(instance_id, financial_status)
         shopify_order_id = order.get('id')
         name = order.get('name')
         shopify_customer_id = order.get('customer').get('id') if order.get('customer') else ''
@@ -95,7 +97,9 @@ class SaleOrder(models.Model):
             'shopify_order_id': shopify_order_id,
             'shopify_instance_id': instance_id.id,
             'date_order': date_order,
-            'company_id': instance_id.company_id.id
+            'company_id': instance_id.company_id.id,
+            'payment_term_id': automation_settings.account_payment_term_id.id
+
         }
         existing_order = self.search(
             [('shopify_order_id', '=', shopify_order_id), ('shopify_instance_id', '=', instance_id.id)], limit=1)
@@ -118,10 +122,8 @@ class SaleOrder(models.Model):
             order_line = self._create_sale_order_line(existing_order, line_items, order.get('tax_lines', []), taxes_included,
                                                       instance_id, log_id)
 
-        # Fetch automation settings based on financial status and instance
-        automation_settings = self._get_automation_settings(instance_id, financial_status)
         if automation_settings:
-            self._process_automation_settings(existing_order, automation_settings, fulfillment_status)
+            self._process_automation_settings(existing_order, automation_settings.rcs_sale_order_automation_id, fulfillment_status)
         return existing_order
 
     def _get_automation_settings(self, instance_id, financial_status):
@@ -135,7 +137,7 @@ class SaleOrder(models.Model):
             configuration = instance_id.shopify_sale_order_process_ids.filtered(
                 lambda config: config.shopify_order_financial_status == financial_status)
             if configuration:
-                return configuration[0].rcs_sale_order_automation_id
+                return configuration[0]
         return False
 
     def _process_automation_settings(self, sale_order, automation_settings, fulfillment_status):
@@ -205,20 +207,6 @@ class SaleOrder(models.Model):
                     move.quantity = move.product_uom_qty
             picking.with_context(skip_backorder=True, skip_sms=True).button_validate()
         return True
-
-    def _get_automationl_settings(self, instance_id, financial_status):
-        """
-            Retrieve automation settings based on Shopify instance and financial status.
-            :param instance_id: Shopify instance ID (shopify.connector record).
-            :param financial_status: Financial status of the Shopify order.
-            :return: Automation settings record (sale.order.automation) or False.
-        """
-        if financial_status:
-            configuration = instance_id.shopify_sale_order_process_ids.filtered(
-                lambda config: config.shopify_order_financial_status == financial_status)
-            if configuration:
-                return configuration.rcs_sale_order_automation_id
-        return False
 
     def _register_payment(self, invoice, automation_settings):
         """

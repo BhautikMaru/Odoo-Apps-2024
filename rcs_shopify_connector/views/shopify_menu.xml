@@ -53,4 +53,10 @@
     <menuitem id="menu_common_log" name="Common Logs"
               parent="rcs_shopify_configuration_main_menu"
               action="rcs_process_logs.action_common_log" sequence="2"/>
+
+    <!-- Payment Gateway menu under Configuration menu -->
+    <menuitem id="menu_payment_gateway" name="Payment Gateway"
+              parent="rcs_shopify_configuration_main_menu"
+              action="rcs_shopify_payment_gateway_action" sequence="5"/>
+
 </odoo>

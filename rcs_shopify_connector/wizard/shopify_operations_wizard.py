@@ -17,7 +17,8 @@ class ShopifyOperationsWizard(models.TransientModel):
                                                      ('import_unshipped_orders', 'Import Unshipped Order'),
                                                      ("import_shipped_orders", "Import Shipped Orders"),
                                                      ("import_specific_order", "Import Specific Order-IDS"),
-                                                     ("export_stock", "Export Stock")],
+                                                     ("export_stock", "Export Stock"),
+                                                     ("import_payment_gateway", "Import Payment Gateway Type")],
                                           string="Shopify Operation")
     start_date = fields.Datetime('From Date')
     end_date = fields.Datetime('To Date', default=fields.Datetime.now)
@@ -67,6 +68,7 @@ class ShopifyOperationsWizard(models.TransientModel):
         product_obj = self.env['product.product']
         partner_obj = self.env['res.partner']
         sale_order_obj = self.env['sale.order']
+        payment_gateway = self.env['shopify.payment.gateway']
         instance_id = self.shopify_connector_id
         queue_ids = []
         action_name = ""
@@ -154,6 +156,17 @@ class ShopifyOperationsWizard(models.TransientModel):
             url = self.truncate_shopify_store_url(self.shopify_connector_id.shopify_host, instance_id, 'inventory_levels/set')
             product_export = product_obj.export_shopify_product(url, instance_id)
             return product_export
+
+        elif self.shopify_operations == 'import_payment_gateway':
+            url = self.truncate_shopify_store_url(self.shopify_connector_id.shopify_host, instance_id, 'orders')
+            start_date_iso = self.start_date.isoformat()
+            end_date_iso = self.end_date.isoformat()
+            url_status = f"{url}?status=any&created_at_min={start_date_iso}&created_at_max={end_date_iso}&fields=payment_gateway_names&limit=250"
+            import_payment_gateway_ids = payment_gateway.create_shopify_payment_gateway(url_status, instance_id)
+            if import_payment_gateway_ids:
+                queue_ids = import_payment_gateway_ids
+                action_name = "rcs_shopify_connector.rcs_shopify_payment_gateway_action"
+                form_view_name = "rcs_shopify_connector.rcs_shopify_payment_gateway_form_view"
 
         if queue_ids and action_name and form_view_name:
             action = self.env.ref(action_name).sudo().read()[0]

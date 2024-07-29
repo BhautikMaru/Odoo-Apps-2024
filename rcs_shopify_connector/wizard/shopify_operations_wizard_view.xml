@@ -16,7 +16,7 @@
                     </group>
                 </group>
                 <notebook>
-                    <page invisible="shopify_operations not in ['import_unshipped_orders','import_shipped_orders','import_orders']"
+                    <page invisible="shopify_operations not in ['import_unshipped_orders','import_shipped_orders','import_orders','import_payment_gateway']"
                           string="Operations">
                         <group string="Select Date to import orders">
                             <group>

@@ -16,7 +16,7 @@
 
     <record id="rcs_shopify_payment_gateway_form_view" model="ir.ui.view">
         <field name="name">shopify.payment.gateway.form.view</field>
-        <field name="model">rcs.shopify.payment.gateway</field>
+        <field name="model">shopify.payment.gateway</field>
         <field name="arch" type="xml">
             <form string="Payment Gateway">
                 <sheet>
@@ -36,8 +36,8 @@
     </record>
 
     <record id="rcs_shopify_payment_gateway_search_view" model="ir.ui.view">
-        <field name="name">rcs.shopify.payment.gateway.search.view</field>
-        <field name="model">rcs.shopify.payment.gateway</field>
+        <field name="name">shopify.payment.gateway.search.view</field>
+        <field name="model">shopify.payment.gateway</field>
         <field name="type">search</field>
         <field name="arch" type="xml">
             <search string="Payment Gateway">
@@ -59,7 +59,7 @@
 
     <record id="rcs_shopify_payment_gateway_action" model="ir.actions.act_window">
         <field name="name">Payment Gateway</field>
-        <field name="res_model">rcs.shopify.payment.gateway</field>
+        <field name="res_model">shopify.payment.gateway</field>
         <field name="view_mode">tree,form</field>
     </record>
 
