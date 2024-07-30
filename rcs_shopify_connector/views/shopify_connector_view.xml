@@ -88,9 +88,9 @@
                                 <field name="shopify_sale_order_process_ids" nolabel="1" colspan="2" readonly="state in 'error'">
                                     <tree editable="bottom" delete="True">
                                         <field name="account_payment_term_id"/>
-<!--                                        <field name="rcs_shopify_payment_gateway_id"-->
-<!--                                               options="{'no_create':True,'no_create_edit': True}"-->
-<!--                                               domain="[('multi_shopify_connector_id' ,'=', parent.id)]"/>-->
+                                        <field name="shopify_payment_gateway_id"
+                                               options="{'no_create':True,'no_create_edit': True}"
+                                               domain="[('multi_shopify_connector_id' ,'=', parent.id)]"/>
                                         <field name="shopify_order_financial_status"/>
                                         <field name="rcs_sale_order_automation_id"/>
                                     </tree>

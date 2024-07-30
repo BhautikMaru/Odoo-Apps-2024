@@ -17,6 +17,8 @@ class SaleOrder(models.Model):
     shopify_instance_id = fields.Many2one('shopify.connector', string='Shopify Instance', tracking=True)
     shopify_order_id = fields.Char(string='Shopify Order ID', tracking=True)
     log_count = fields.Integer(string='Sale Order Logs', compute='_get_sale_order_logs', store=True)
+    shopify_payment_gateway_id = fields.Many2one("shopify.payment.gateway", string="Shopify Payment Gateway", ondelete="restrict")
+
 
     @api.depends('shopify_order_id')
     def _get_sale_order_logs(self):
@@ -82,8 +84,9 @@ class SaleOrder(models.Model):
         shopify_connection = self.env['shopify.connector']
         financial_status = order.get('financial_status')
         fulfillment_status = order.get('fulfillment_status')
+        payment_gateway_name = order.get('payment_gateway_names') or 'no_payment_gateway'
         # Fetch automation settings based on financial status and instance
-        automation_settings = self._get_automation_settings(instance_id, financial_status)
+        automation_settings = self._get_automation_settings(instance_id, financial_status, payment_gateway_name)
         shopify_order_id = order.get('id')
         name = order.get('name')
         shopify_customer_id = order.get('customer').get('id') if order.get('customer') else ''
@@ -98,7 +101,8 @@ class SaleOrder(models.Model):
             'shopify_instance_id': instance_id.id,
             'date_order': date_order,
             'company_id': instance_id.company_id.id,
-            'payment_term_id': automation_settings.account_payment_term_id.id
+            'payment_term_id': automation_settings.account_payment_term_id.id,
+            'shopify_payment_gateway_id': automation_settings.shopify_payment_gateway_id.id
 
         }
         existing_order = self.search(
@@ -126,7 +130,7 @@ class SaleOrder(models.Model):
             self._process_automation_settings(existing_order, automation_settings.rcs_sale_order_automation_id, fulfillment_status)
         return existing_order
 
-    def _get_automation_settings(self, instance_id, financial_status):
+    def _get_automation_settings(self, instance_id, financial_status, payment_gateway_name):
         """
             Retrieve automation settings based on Shopify instance and financial status.
             :param instance_id: Shopify instance ID (shopify.connector record).
@@ -135,7 +139,10 @@ class SaleOrder(models.Model):
         """
         if financial_status:
             configuration = instance_id.shopify_sale_order_process_ids.filtered(
-                lambda config: config.shopify_order_financial_status == financial_status)
+                lambda config: (
+                        config.shopify_order_financial_status == financial_status and
+                        config.shopify_payment_gateway_id == payment_gateway_name
+                ))
             if configuration:
                 return configuration[0]
         return False
