@@ -8,6 +8,7 @@
         <field name="arch" type="xml">
             <tree string="Sale WorkFlow Automation">
                 <field name="name"/>
+                <field name="multi_shopify_connector_id"/>
                 <field name="is_confirm_order"/>
                 <field name="is_create_invoice"/>
                 <field name="is_register_payment"/>
@@ -28,6 +29,7 @@
                     <group>
                         <group>
                             <field name="name" required="1"/>
+                            <field name="multi_shopify_connector_id" required="1"/>
                         </group>
                         <group>
                             <field name="journal_id"

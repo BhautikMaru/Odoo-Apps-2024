@@ -38,6 +38,7 @@ class SaleOrderAutomation(models.Model):
     sale_journal_id = fields.Many2one('account.journal', string='Sales Journal', default=_get_set_default_journal, domain=[('type', '=', 'sale')])
     inbound_payment_method_line_id = fields.Many2one('account.payment.method.line', string="Debit Method", domain=[('payment_type', '=', 'inbound')])
     company_id = fields.Many2one('res.company', string='Company', default=_get_set_default_company)
+    multi_shopify_connector_id = fields.Many2one('shopify.connector', string='Multi Shopify Connector', copy=False, required=True)
 
     @api.onchange("is_confirm_order")
     def onchange_confirm_order(self):

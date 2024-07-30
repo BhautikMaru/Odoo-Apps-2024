@@ -8,6 +8,7 @@ import json
 class ShopifyPaymentGateway(models.Model):
     _name = "shopify.payment.gateway"
     _description = "Shopify Payment Gateway"
+    _rec_name = "name"
 
     active = fields.Boolean(string="Active GateWay", default=True)
     name = fields.Char(string='Name', required=True, translate=True)
@@ -17,6 +18,15 @@ class ShopifyPaymentGateway(models.Model):
 
 
     def create_shopify_payment_gateway(self, url_status, shopify_instance_id):
+        """
+          Fetches payment gateways from Shopify and creates or updates them in the Odoo system.
+
+          :param url_status: The URL endpoint to fetch payment gateway information from Shopify.
+          :param shopify_instance_id: The Shopify instance record that contains authentication details
+                                      for the request.
+          :return: A recordset of `shopify.payment.gateway` instances that were created or updated.
+          :rtype: recordset of `shopify.payment.gateway`
+        """
         shopify_connection = self.env['shopify.connector']
         payment_gateway = []
         shopify_payment = None
@@ -44,6 +54,15 @@ class ShopifyPaymentGateway(models.Model):
             return shopify_payment
 
     def search_or_create_payment_gateway(self, instance, gateway_name, rec):
+        """
+           Searches for an existing payment gateway record in Odoo or creates a new one if it does not exist.
+
+           :param instance: The Shopify connector instance to associate with the payment gateway.
+           :param gateway_name: The name of the payment gateway to search for or create.
+           :param rec: The Shopify order record containing the payment gateway information. This is used for logging purposes.
+           :return: The `shopify.payment.gateway` record that was found or created.
+           :rtype: record of `shopify.payment.gateway`
+        """
         shopify_connection = self.env['shopify.connector']
 
         shopify_payment_gateway = self.search([('code', '=', gateway_name),

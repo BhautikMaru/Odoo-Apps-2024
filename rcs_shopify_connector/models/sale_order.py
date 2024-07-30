@@ -87,6 +87,8 @@ class SaleOrder(models.Model):
         payment_gateway_name = order.get('payment_gateway_names') or 'no_payment_gateway'
         # Fetch automation settings based on financial status and instance
         automation_settings = self._get_automation_settings(instance_id, financial_status, payment_gateway_name)
+        payment_term_id = automation_settings.account_payment_term_id.id if automation_settings else False
+        payment_gateway_id = automation_settings.shopify_payment_gateway_id.id if automation_settings else False
         shopify_order_id = order.get('id')
         name = order.get('name')
         shopify_customer_id = order.get('customer').get('id') if order.get('customer') else ''
@@ -101,8 +103,8 @@ class SaleOrder(models.Model):
             'shopify_instance_id': instance_id.id,
             'date_order': date_order,
             'company_id': instance_id.company_id.id,
-            'payment_term_id': automation_settings.account_payment_term_id.id,
-            'shopify_payment_gateway_id': automation_settings.shopify_payment_gateway_id.id
+            'payment_term_id': payment_term_id,
+            'shopify_payment_gateway_id': payment_gateway_id
 
         }
         existing_order = self.search(
@@ -137,12 +139,14 @@ class SaleOrder(models.Model):
             :param financial_status: Financial status of the Shopify order.
             :return: Automation settings record (sale.order.automation) or False.
         """
-        if financial_status:
+        if financial_status and payment_gateway_name:
+            # Filter the configurations based on financial status and payment gateway
             configuration = instance_id.shopify_sale_order_process_ids.filtered(
                 lambda config: (
                         config.shopify_order_financial_status == financial_status and
-                        config.shopify_payment_gateway_id == payment_gateway_name
-                ))
+                        config.shopify_payment_gateway_id.name == payment_gateway_name
+                )
+            )
             if configuration:
                 return configuration[0]
         return False

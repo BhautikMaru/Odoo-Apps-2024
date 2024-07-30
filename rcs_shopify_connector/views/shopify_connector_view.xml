@@ -92,7 +92,9 @@
                                                options="{'no_create':True,'no_create_edit': True}"
                                                domain="[('multi_shopify_connector_id' ,'=', parent.id)]"/>
                                         <field name="shopify_order_financial_status"/>
-                                        <field name="rcs_sale_order_automation_id"/>
+                                        <field name="rcs_sale_order_automation_id"
+                                               options="{'no_create':True,'no_create_edit': True}"
+                                               domain="[('multi_shopify_connector_id' ,'=', parent.id)]"/>
                                     </tree>
                                 </field>
                             </group>

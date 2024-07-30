@@ -58,8 +58,8 @@ class ShopifyWebhook(models.Model):
                 if shopify_instance_id.state != "integrated":
                     raise ValidationError("Shopify instance is not connected. Please connect Shopify instance first.")
 
-                base_url = 'https://64e8-150-129-104-231.ngrok-free.app'
-                # base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url')
+                # base_url = 'https://64e8-150-129-104-231.ngrok-free.app'
+                base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url')
                 operations = record.shopify_operation_url_hook()
                 url = base_url + operations
                 if url[:url.find(":")] == 'http':

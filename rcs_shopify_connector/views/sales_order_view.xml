@@ -65,6 +65,7 @@
                 <page string="Shopify " name="shopify_order">
                     <group>
                         <field name="shopify_order_id" readonly="1"/>
+                        <field name="shopify_payment_gateway_id" readonly="1"/>
                         <field name="shopify_instance_id" readonly="1"/>
                         <field name="is_shopify_order" readonly="1"/>
                     </group>
