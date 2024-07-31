@@ -5,7 +5,7 @@ import requests
 import base64
 import logging
 
-_LOGGER = logging.getLogger(">>> Shopify Import Products <<<")
+_logger = logging.getLogger(">>> Shopify Import Products <<<")
 
 
 class ProductTemplate(models.Model):
@@ -55,11 +55,14 @@ class ProductTemplate(models.Model):
             :return: True if archived successfully, False otherwise.
         """
         product_id = shopify_product_id.get('id')
+        _logger.info("Attempting to archive product with Shopify Product ID: %s", product_id)
         products = self.search(
             [('shopify_product_id', '=', product_id), ('shopify_instance_id', '=', instance_id.id)])
         if products:
             products.write({'active': False})
+            _logger.info("Successfully archived product(s) with Shopify Product ID: %s", product_id)
             return True
+        _logger.info("No products found to archive with Shopify Product ID: %s", product_id)
         return False
 
     def _get_image_from_url(self, url):
@@ -125,126 +128,139 @@ class ProductTemplate(models.Model):
         """
         shopify_connection = self.env['shopify.connector']
         image_data = None
-        if product_data.get('image') and product_data.get('image').get('src'):
-            image_data = self._get_image_from_url(product_data['image']['src'])
+        try:
+            if product_data.get('image') and product_data.get('image').get('src'):
+                _logger.info("Fetching image from URL: %s", product_data['image']['src'])
+                image_data = self._get_image_from_url(product_data['image']['src'])
 
-        product_category = False
-        if product_data.get('product_type'):
-            product_category = self._get_or_create_category(product_data.get('product_type')).id
+            product_category = False
+            if product_data.get('product_type'):
+                _logger.info("Getting or creating category: %s", product_data.get('product_type'))
+                product_category = self._get_or_create_category(product_data.get('product_type')).id
 
-        variation_attributes_lst = []
-        # Collect option names from product data
-        option_name_lst = [options.get("name") for options in product_data.get("options", []) if options.get("name")]
+            variation_attributes_lst = []
+            # Collect option names from product data
+            option_name_lst = [options.get("name") for options in product_data.get("options", []) if options.get("name")]
 
-        # Collect attribute lines
-        attribute_lines = {}
-        for variant in product_data.get('variants', []):
-            variant_id = variant.get("id")
-            variant_barcode = variant.get("barcode")
-            variant_weight = variant.get("weight")
-            weight_unit = variant.get('weight_unit')
-            inventory_item_id = variant.get('inventory_item_id')
-            variant_dict = {"variant_id": variant_id,
-                            "barcode": variant_barcode,
-                            "weight": variant_weight,
-                            "weight_unit": weight_unit,
-                            "inventory_item_id": inventory_item_id}
-            # Map options to their corresponding names
-            if len(option_name_lst) > 0 and variant.get("option1"):
-                variant_dict[option_name_lst[0]] = variant.get("option1")
-            if len(option_name_lst) > 1 and variant.get("option2"):
-                variant_dict[option_name_lst[1]] = variant.get("option2")
-            if len(option_name_lst) > 2 and variant.get("option3"):
-                variant_dict[option_name_lst[2]] = variant.get("option3")
-            variation_attributes_lst.append(variant_dict)
+            # Collect attribute lines
+            attribute_lines = {}
+            for variant in product_data.get('variants', []):
+                variant_id = variant.get("id")
+                variant_barcode = variant.get("barcode")
+                variant_weight = variant.get("weight")
+                weight_unit = variant.get('weight_unit')
+                inventory_item_id = variant.get('inventory_item_id')
+                variant_dict = {"variant_id": variant_id,
+                                "barcode": variant_barcode,
+                                "weight": variant_weight,
+                                "weight_unit": weight_unit,
+                                "inventory_item_id": inventory_item_id}
+                # Map options to their corresponding names
+                if len(option_name_lst) > 0 and variant.get("option1"):
+                    variant_dict[option_name_lst[0]] = variant.get("option1")
+                if len(option_name_lst) > 1 and variant.get("option2"):
+                    variant_dict[option_name_lst[1]] = variant.get("option2")
+                if len(option_name_lst) > 2 and variant.get("option3"):
+                    variant_dict[option_name_lst[2]] = variant.get("option3")
+                variation_attributes_lst.append(variant_dict)
 
-            for option in ['option1', 'option2', 'option3']:
-                attribute_value_name = variant.get(option)
-                if attribute_value_name:
-                    attribute_index = int(option[-1]) - 1
-                    if attribute_index < len(product_data['options']):
-                        attribute_name = product_data['options'][attribute_index]['name']
-                        shopify_attribute_id = product_data['options'][attribute_index]['id']
-                        attribute = self._get_or_create_attribute(attribute_name)
-                        attribute_value = self._get_or_create_attribute_value(attribute, attribute_value_name)
+                for option in ['option1', 'option2', 'option3']:
+                    attribute_value_name = variant.get(option)
+                    if attribute_value_name:
+                        attribute_index = int(option[-1]) - 1
+                        if attribute_index < len(product_data['options']):
+                            attribute_name = product_data['options'][attribute_index]['name']
+                            shopify_attribute_id = product_data['options'][attribute_index]['id']
+                            attribute = self._get_or_create_attribute(attribute_name)
+                            attribute_value = self._get_or_create_attribute_value(attribute, attribute_value_name)
 
-                        if attribute.id not in attribute_lines:
-                            attribute_lines[attribute.id] = {
-                                'attribute_id': attribute.id,
-                                'value_ids': []
-                            }
-                        if attribute_value.id not in attribute_lines[attribute.id]['value_ids']:
-                            attribute_lines[attribute.id]['value_ids'].append(attribute_value.id)
+                            if attribute.id not in attribute_lines:
+                                attribute_lines[attribute.id] = {
+                                    'attribute_id': attribute.id,
+                                    'value_ids': []
+                                }
+                            if attribute_value.id not in attribute_lines[attribute.id]['value_ids']:
+                                attribute_lines[attribute.id]['value_ids'].append(attribute_value.id)
 
-        # Searching for existing product template
-        product_tmpl = self.search(
-            [('shopify_instance_id', '=', instance_id.id),
-             ('shopify_product_id', '=', product_data['id'])],
-            limit=1)
+            # Searching for existing product template
+            _logger.info("Searching for existing product template.")
+            product_tmpl = self.search(
+                [('shopify_instance_id', '=', instance_id.id),
+                 ('shopify_product_id', '=', product_data['id'])],
+                limit=1)
 
-        # Attribute line values to be updated or created
-        existing_attribute_lines = {}
-        if product_tmpl:
-            for line in product_tmpl.attribute_line_ids:
-                existing_attribute_lines[line.attribute_id.id] = line.value_ids.ids
+            # Attribute line values to be updated or created
+            existing_attribute_lines = {}
+            if product_tmpl:
+                _logger.info("Found existing product template: %s", product_tmpl.name)
+                for line in product_tmpl.attribute_line_ids:
+                    existing_attribute_lines[line.attribute_id.id] = line.value_ids.ids
 
-        new_attribute_lines = []
-        for attr_id, line_data in attribute_lines.items():
-            if attr_id in existing_attribute_lines:
-                existing_value_ids = set(existing_attribute_lines[attr_id])
-                new_value_ids = set(line_data['value_ids'])
-                if not new_value_ids.issubset(existing_value_ids):
-                    combined_value_ids = list(existing_value_ids.union(new_value_ids))
-                    new_attribute_lines.append(
-                        (1, product_tmpl.attribute_line_ids.filtered(lambda l: l.attribute_id.id == attr_id).id, {
-                            'value_ids': [(6, 0, combined_value_ids)]}))
+            new_attribute_lines = []
+            for attr_id, line_data in attribute_lines.items():
+                if attr_id in existing_attribute_lines:
+                    existing_value_ids = set(existing_attribute_lines[attr_id])
+                    new_value_ids = set(line_data['value_ids'])
+                    if not new_value_ids.issubset(existing_value_ids):
+                        combined_value_ids = list(existing_value_ids.union(new_value_ids))
+                        new_attribute_lines.append(
+                            (1, product_tmpl.attribute_line_ids.filtered(lambda l: l.attribute_id.id == attr_id).id, {
+                                'value_ids': [(6, 0, combined_value_ids)]}))
+                else:
+                    new_attribute_lines.append((0, 0, {
+                        'attribute_id': attr_id,
+                        'value_ids': [(6, 0, line_data['value_ids'])]
+                    }))
+
+            product_vals = {
+                'name': product_data['title'],
+                'image_1920': image_data,
+                'shopify_product_id': product_data['id'],
+                'shopify_instance_id': instance_id.id,
+                'attribute_line_ids': new_attribute_lines,
+                'categ_id': product_category,
+                'type': 'product',
+                'is_shopify_product': True
+            }
+
+            if product_tmpl:
+                _logger.info("Updating existing product template: %s", product_tmpl.name)
+                product_tmpl.write(product_vals)
             else:
-                new_attribute_lines.append((0, 0, {
-                    'attribute_id': attr_id,
-                    'value_ids': [(6, 0, line_data['value_ids'])]
-                }))
+                _logger.info("Creating new product template: %s", product_data['title'])
+                product_tmpl = self.create(product_vals)
 
-        product_vals = {
-            'name': product_data['title'],
-            'image_1920': image_data,
-            'shopify_product_id': product_data['id'],
-            'shopify_instance_id': instance_id.id,
-            'attribute_line_ids': new_attribute_lines,
-            'categ_id': product_category,
-            'type': 'product',
-            'is_shopify_product': True
-        }
-
-        if product_tmpl:
-            product_tmpl.write(product_vals)
-        else:
-            product_tmpl = self.create(product_vals)
-
-        log_id = shopify_connection._create_common_process_log(f"Successfully imported {product_data['title']} Product from Shopify.",
-                                                               "product.template", product_tmpl, product_data)
-        product_variants = product_tmpl.product_variant_ids
-        for variant in product_variants:
-            attribute_values = variant.product_template_attribute_value_ids
-            for attribute in variation_attributes_lst:
-                match = True
-                for idx, option in enumerate(option_name_lst):
-                    if attribute.get(option) != variant.product_template_attribute_value_ids.filtered(lambda v: v.attribute_id.name == option).name:
-                        match = False
+            log_id = shopify_connection._create_common_process_log(f"Successfully imported {product_data['title']} Product from Shopify.",
+                                                                   "product.template", product_tmpl, product_data)
+            product_variants = product_tmpl.product_variant_ids
+            for variant in product_variants:
+                attribute_values = variant.product_template_attribute_value_ids
+                for attribute in variation_attributes_lst:
+                    match = True
+                    for idx, option in enumerate(option_name_lst):
+                        if attribute.get(option) != variant.product_template_attribute_value_ids.filtered(lambda v: v.attribute_id.name == option).name:
+                            match = False
+                            break
+                    if match:
+                        vals = {
+                            'shopify_variant_id': attribute['variant_id'],
+                            'barcode': attribute['barcode'],
+                            'weight': attribute['weight'],
+                            'company_id': instance_id.company_id.id,
+                            'is_shopify_product': True,
+                            'shopify_instance_id': instance_id.id,
+                            'inventory_item_id': attribute['inventory_item_id']
+                        }
+                        _logger.info("Updating variant '%s' with values: %s", variant.display_name, vals)
+                        variant.update(vals)
                         break
-                if match:
-                    vals = {
-                        'shopify_variant_id': attribute['variant_id'],
-                        'barcode': attribute['barcode'],
-                        'weight': attribute['weight'],
-                        'company_id': instance_id.company_id.id,
-                        'is_shopify_product': True,
-                        'shopify_instance_id': instance_id.id,
-                        'inventory_item_id': attribute['inventory_item_id']
-                    }
-                    variant.update(vals)
-                    break
-            log_line_id = shopify_connection._create_common_process_log_line(log_id, variant.display_name, variant, product_data, f"Successfully imported {variant.display_name} customer from Shopify.", 'success')
-        return product_tmpl
+                _logger.info("Successfully imported variant '%s' from Shopify.", variant.display_name)
+                log_line_id = shopify_connection._create_common_process_log_line(log_id, variant.display_name, variant, product_data, f"Successfully imported {variant.display_name} customer from Shopify.", 'success')
+            return product_tmpl
+        except Exception as e:
+            _logger.error("An error occurred while creating or updating product '%s': %s", product_data.get('title', 'Unknown'), str(e))
+            log_id = shopify_connection._create_common_process_log('An error occurred while creating or updating product from Shopify', "product.template", None, str(e))
+            log_line_id = shopify_connection._create_common_process_log_line(log_id, 'Error', None, str(e), 'Error: Product creation or update failed.', 'error')
 
     def import_product(self, url, instance_id):
         """

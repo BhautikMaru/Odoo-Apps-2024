@@ -62,10 +62,14 @@ class ResPartner(models.Model):
             :param instance_id: Shopify instance ID (shopify.connector record).
             :return: True if customer is archived successfully, False otherwise.
         """
+        _LOGGER.info("Attempting to archive customer with Shopify ID: %s", customer_data['id'])
         partner = self.search([('shopify_customer_id', '=', customer_data['id']),
                                ('shopify_instance_id', '=', instance_id.id)])
         if partner:
+            _LOGGER.info("Found customer with Shopify ID: %s. Archiving customer...", customer_data['id'])
             partner.write({'active': False})
+            _LOGGER.info("Customer with Shopify ID: %s successfully archived.", customer_data['id'])
+
         return True
 
     def _create_or_update_customer(self, customer_data, instance_id):
@@ -75,40 +79,50 @@ class ResPartner(models.Model):
             :param instance_id: Shopify instance ID (shopify.connector record).
             :return: Updated or newly created partner record.
         """
+        partner_obj = self.env['res.partner']
         shopify_connection = self.env['shopify.connector']
-        # Check if the customer already exists
-        existing_partner = self.search([('shopify_customer_id', '=', customer_data['id']),
-                                        ('shopify_instance_id', '=', instance_id.id)], limit=1)
-        default_address = customer_data.get('default_address')
-        state_id, country_id = self._get_country_or_state_id(default_address.get('province') if default_address else '', default_address.get('country_code') if default_address else '')
-        first_name = customer_data.get('first_name', '')
-        last_name = customer_data.get('last_name', '')
-        name = f"{first_name} {last_name}".strip()
-        vals = {
-            'name': name,
-            'email': customer_data.get('email'),
-            'phone': customer_data.get('phone'),
-            'street': default_address.get('address1') if default_address else False,
-            'street2': default_address.get('address2') if default_address else False,
-            'city': default_address.get('city') if default_address else False,
-            'zip': default_address.get('zip') if default_address else False,
-            'state_id': state_id,
-            'country_id': country_id,
-            'shopify_customer_id': customer_data.get('id'),
-            'shopify_instance_id': instance_id.id,
-            'company_type': 'person',
-            'is_shopify_customer': True,
-            'company_id': instance_id.company_id.id
-        }
-        if not existing_partner:
-            existing_partner = self.create(vals)
-            log_id = shopify_connection._create_common_process_log(f"Successfully created {name} customer from Shopify.", "res.partner", existing_partner, customer_data)
-            log_line_id = shopify_connection._create_common_process_log_line(log_id, name, existing_partner, customer_data, f"Successfully imported {name} customer from Shopify.", 'success')
-        else:
-            existing_partner.write(vals)
-            log_id = shopify_connection._create_common_process_log(f"Successfully update {name} customer from Shopify.", "res.partner", existing_partner, customer_data)
-            log_line_id = shopify_connection._create_common_process_log_line(log_id, name, existing_partner, customer_data, f"Successfully updated {name} customer from Shopify.", 'success')
-        return existing_partner
+        customer_id = None
+        try:
+            # Check if the customer already exists
+            existing_partner = self.search([('shopify_customer_id', '=', customer_data['id']),
+                                            ('shopify_instance_id', '=', instance_id.id)], limit=1)
+            default_address = customer_data.get('default_address')
+            state_id, country_id = self._get_country_or_state_id(default_address.get('province') if default_address else '', default_address.get('country_code') if default_address else '')
+            first_name = customer_data.get('first_name', '')
+            last_name = customer_data.get('last_name', '')
+            name = f"{first_name} {last_name}".strip()
+            vals = {
+                'name': name,
+                'email': customer_data.get('email'),
+                'phone': customer_data.get('phone'),
+                'street': default_address.get('address1') if default_address else False,
+                'street2': default_address.get('address2') if default_address else False,
+                'city': default_address.get('city') if default_address else False,
+                'zip': default_address.get('zip') if default_address else False,
+                'state_id': state_id,
+                'country_id': country_id,
+                'shopify_customer_id': customer_data.get('id'),
+                'shopify_instance_id': instance_id.id,
+                'company_type': 'person',
+                'is_shopify_customer': True,
+                'company_id': instance_id.company_id.id
+            }
+            if not existing_partner:
+                existing_partner = self.create(vals)
+                _LOGGER.info("Successfully created customer '%s' from Shopify.", name)
+                log_id = shopify_connection._create_common_process_log(f"Successfully created {name} customer from Shopify.", "res.partner", existing_partner, customer_data)
+                log_line_id = shopify_connection._create_common_process_log_line(log_id, name, existing_partner, customer_data, f"Successfully imported {name} customer from Shopify.", 'success')
+            else:
+                existing_partner.write(vals)
+                _LOGGER.info("Successfully updated customer '%s' from Shopify.", name)
+                log_id = shopify_connection._create_common_process_log(f"Successfully update {name} customer from Shopify.", "res.partner", existing_partner, customer_data)
+                log_line_id = shopify_connection._create_common_process_log_line(log_id, name, existing_partner, customer_data, f"Successfully updated {name} customer from Shopify.", 'success')
+            return existing_partner
+        except Exception as e:
+            _LOGGER.error("An error occurred while creating or updating customer with Shopify ID '%s': %s", str(e), exc_info=True)
+            log_id = shopify_connection._create_common_process_log('An error occurred while creating customers from Shopify', "res.partner", customer_id, str(e))
+            log_line_id = shopify_connection._create_common_process_log_line(log_id, 'Error', customer_id, str(e), 'Error: Customer created failed.', 'error')
+            return partner_obj
 
     def import_customer(self, url, instance_id):
         """
@@ -124,12 +138,14 @@ class ResPartner(models.Model):
             "X-Shopify-Access-Token": instance_id.shopify_access_token
         }
         try:
+            _LOGGER.info("Fetching customers from Shopify with URL: %s", url)
             response = requests.get(url, headers=headers)
             if response.status_code == 200:
                 customers = response.json().get('customers', [])
                 customer = response.json().get('customer', [])
                 if customer:
                     try:
+                        _LOGGER.info("Processing single customer data: %s", customer)
                         customer_id = partner_obj._create_or_update_customer(customer, instance_id)
                         return customer_id
                     except Exception as e:

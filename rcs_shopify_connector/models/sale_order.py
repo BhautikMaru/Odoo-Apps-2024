@@ -7,7 +7,7 @@ from odoo import models, fields, api, _
 from dateutil import parser
 from odoo.tools.misc import split_every
 
-_LOGGER = logging.getLogger(">>> Shopify Import Orders <<<")
+_logger = logging.getLogger(">>> Shopify Import Orders <<<")
 
 
 class SaleOrder(models.Model):
@@ -74,63 +74,99 @@ class SaleOrder(models.Model):
             partner_id = partner_obj.import_customer(url, instance_id)
             return partner_id
 
-    def _create_or_update_orders(self, order, instance_id):
+    def _create_or_update_orders(self, order, instance_id, **kwargs):
         """
             Create or update a sale order based on Shopify order data.
             :param order: Dictionary containing Shopify order data.
             :param instance_id: Shopify instance ID (shopify.connector record).
             :return: Created or updated sale.order record.
         """
+        sale_order = self.env['sale.order']
         shopify_connection = self.env['shopify.connector']
-        financial_status = order.get('financial_status')
-        fulfillment_status = order.get('fulfillment_status')
-        payment_gateway_name = order.get('payment_gateway_names') or 'no_payment_gateway'
-        # Fetch automation settings based on financial status and instance
-        automation_settings = self._get_automation_settings(instance_id, financial_status, payment_gateway_name)
-        payment_term_id = automation_settings.account_payment_term_id.id if automation_settings else False
-        payment_gateway_id = automation_settings.shopify_payment_gateway_id.id if automation_settings else False
-        shopify_order_id = order.get('id')
-        name = order.get('name')
-        shopify_customer_id = order.get('customer').get('id') if order.get('customer') else ''
-        date_order = self.convert_order_date(order)
-        partner_id = self._get_partner_id(shopify_customer_id, instance_id)
-        taxes_included = order.get("taxes_included") or False
+        try:
+            financial_status = order.get('financial_status')
+            fulfillment_status = order.get('fulfillment_status')
+            payment_gateway_name = order.get('payment_gateway_names') or 'no_payment_gateway'
+            # Fetch automation settings based on financial status and instance
+            automation_settings = self._get_automation_settings(instance_id, financial_status, payment_gateway_name)
+            payment_term_id = automation_settings.account_payment_term_id.id if automation_settings else False
+            payment_gateway_id = automation_settings.shopify_payment_gateway_id.id if automation_settings else False
+            shopify_order_id = order.get('id')
+            name = order.get('name')
+            shopify_customer_id = order.get('customer').get('id') if order.get('customer') else ''
+            date_order = self.convert_order_date(order)
+            partner_id = self._get_partner_id(shopify_customer_id, instance_id)
+            taxes_included = order.get("taxes_included") or False
 
-        sale_order_vals = {
-            'partner_id': partner_id.id,
-            'is_shopify_order': True,
-            'shopify_order_id': shopify_order_id,
-            'shopify_instance_id': instance_id.id,
-            'date_order': date_order,
-            'company_id': instance_id.company_id.id,
-            'payment_term_id': payment_term_id,
-            'shopify_payment_gateway_id': payment_gateway_id
+            _logger.info("Processing order: %s, Shopify order ID: %s", name, shopify_order_id)
 
-        }
-        existing_order = self.search(
-            [('shopify_order_id', '=', shopify_order_id), ('shopify_instance_id', '=', instance_id.id)], limit=1)
+            res_id = None
+            if partner_id:
+                sale_order_vals = {
+                    'partner_id': partner_id.id,
+                    'is_shopify_order': True,
+                    'shopify_order_id': shopify_order_id,
+                    'shopify_instance_id': instance_id.id,
+                    'date_order': date_order,
+                    'company_id': instance_id.company_id.id,
+                    'payment_term_id': payment_term_id,
+                    'shopify_payment_gateway_id': payment_gateway_id
 
-        if existing_order:
-            if existing_order.state in ['sale', 'cancel']:
-                log_id = shopify_connection._create_common_process_log(f"Successfully update {name} order from Shopify.", "sale.order", existing_order, order)
-                log_line_id = shopify_connection._create_common_process_log_line(log_id, name, existing_order, order, f"Successfully updated {name} order from Shopify.", 'success')
+                }
+                existing_order = self.search(
+                    [('shopify_order_id', '=', shopify_order_id), ('shopify_instance_id', '=', instance_id.id)], limit=1)
+
+                if existing_order:
+                    _logger.info("Found existing order: %s", existing_order.name)
+                    if existing_order.state in ['sale', 'cancel']:
+                        log_id = shopify_connection._create_common_process_log(f"Successfully update {name} order from Shopify.", "sale.order", existing_order, order)
+                        log_line_id = shopify_connection._create_common_process_log_line(log_id, name, existing_order, order, f"Successfully updated {name} order from Shopify.", 'success')
+                        _logger.info(f"Successfully update {name} order from Shopify.", order)
+                    else:
+                        existing_order.write(sale_order_vals)
+                        log_id = shopify_connection._create_common_process_log(f"Successfully update {name} order from Shopify.", "sale.order", existing_order, order)
+                        log_line_id = shopify_connection._create_common_process_log_line(log_id, name, existing_order, order, f"Successfully updated {name} order from Shopify.", 'success')
+                        _logger.info(f"Successfully update {name} order from Shopify.", order)
+                else:
+                    existing_order = self.create(sale_order_vals)
+                    log_id = shopify_connection._create_common_process_log(f"Successfully created {name} order from Shopify.", "sale.order", existing_order, order)
+                    log_line_id = shopify_connection._create_common_process_log_line(log_id, name, existing_order, order, f"Successfully created {name} order from Shopify.", 'success')
+                    _logger.info(f"Successfully created {name} order from Shopify.", order)
+
+                line_items = order.get('line_items')
+                if existing_order.state not in ["sale", "cancel"]:
+                    _logger.info("Creating or updating sale order lines for order: %s", existing_order.name)
+                    order_line = self._create_sale_order_line(existing_order, line_items, order.get('tax_lines', []), taxes_included,  instance_id, log_id)
+
+                if automation_settings:
+                    _logger.info("Processing automation settings for order: %s", existing_order.name)
+                    self._process_automation_settings(existing_order, automation_settings.rcs_sale_order_automation_id, fulfillment_status)
+
+                if kwargs.get('record'):
+                    kwargs.get('record').state = 'done'
+                    _logger.info("Order processed successfully, record state set to 'done': %s", existing_order.name)
+                    return existing_order
+                else:
+                    _logger.info("Order processed successfully.", existing_order.name)
+                    return existing_order
+
             else:
-                existing_order.write(sale_order_vals)
-                log_id = shopify_connection._create_common_process_log(f"Successfully update {name} order from Shopify.", "sale.order", existing_order, order)
-                log_line_id = shopify_connection._create_common_process_log_line(log_id, name, existing_order, order, f"Successfully updated {name} order from Shopify.", 'success')
-        else:
-            existing_order = self.create(sale_order_vals)
-            log_id = shopify_connection._create_common_process_log(f"Successfully created {name} order from Shopify.", "sale.order", existing_order, order)
-            log_line_id = shopify_connection._create_common_process_log_line(log_id, name, existing_order, order, f"Successfully created {name} order from Shopify.", 'success')
+                log_id = shopify_connection._create_common_process_log(f"Failed to fetch orders from Shopify because {name} order customer is not set", "sale.order", res_id, order)
+                log_line_id = shopify_connection._create_common_process_log_line(log_id, 'Error', res_id, order, f"Failed to fetch sale order from Shopify.", 'error')
+                _logger.warning("Failed to fetch orders from Shopify because customer is not set for order: %s", name)
 
-        line_items = order.get('line_items')
-        if existing_order.state not in ["sale", "cancel"]:
-            order_line = self._create_sale_order_line(existing_order, line_items, order.get('tax_lines', []), taxes_included,
-                                                      instance_id, log_id)
+                if kwargs.get('record'):
+                    kwargs.get('record').state = 'cancel'
+                    return sale_order
+                else:
+                    return sale_order
+        except Exception as e:
+            # Log the exception
+            _logger.error("Exception occurred while processing order from Shopify: %s, Exception: %s", name, str(e), exc_info=True)
+            log_id = shopify_connection._create_common_process_log(
+                f"Exception occurred while processing {name} order from Shopify.", "sale.order", res_id, str(e))
+            log_line_id = shopify_connection._create_common_process_log_line(log_id, 'Error', res_id, str(e), f"Exception occurred while processing {name} order from Shopify.", 'error')
 
-        if automation_settings:
-            self._process_automation_settings(existing_order, automation_settings.rcs_sale_order_automation_id, fulfillment_status)
-        return existing_order
 
     def _get_automation_settings(self, instance_id, financial_status, payment_gateway_name):
         """

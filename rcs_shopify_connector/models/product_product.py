@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 import requests
 import json
+import logging
 from odoo import models, fields, api, _
+
+_LOGGER = logging.getLogger(">>> Shopify Import Product <<<")
 
 
 class ProductProduct(models.Model):
@@ -32,6 +35,7 @@ class ProductProduct(models.Model):
         products_to_export = self.search([('shopify_instance_id', '=', instance_id.id)])
         export_stock = []
         log_id = shopify_connection._create_common_process_log("Successfully exported stock to Shopify.", "product.product")
+        _LOGGER.info("Starting stock export to Shopify for %d products.", len(products_to_export))
         for product in products_to_export:
             try:
                 # Query stock.quant to get the available quantity for the product
@@ -56,12 +60,16 @@ class ProductProduct(models.Model):
                 if response.status_code == 200:
                     response_data = response.json()
                     export_stock.append(response_data)
+                    _LOGGER.info("Successfully exported stock for product '%s' to Shopify.", product.name)
                     log_line_id = shopify_connection._create_common_process_log_line(log_id, product.name, product,payload_json, f"Successfully imported {product.name} customer from Shopify.", 'success')
                 else:
+                    _LOGGER.error("Failed to export stock for product '%s'. HTTP Error: %d", product.name, response.status_code)
                     log_line_id = shopify_connection._create_common_process_log_line(log_id, product.name, product, payload_json, f"Failed to export stock. HTTP Error: {response.status_code}", 'error')
 
             except Exception as e:
+                _LOGGER.error("Exception occurred while exporting stock for product '%s': %s", product.name, str(e), exc_info=True)
                 log_line_id = shopify_connection._create_common_process_log_line(log_id, product.name, product, str(e), "Failed to export stock.", 'error')
 
         notification = connector_obj._create_notification('Success', 'Export stock Process Completed', 'success')
+        _LOGGER.info("Stock export process completed with %d products processed.", len(products_to_export))
         return notification

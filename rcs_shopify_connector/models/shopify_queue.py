@@ -134,8 +134,8 @@ class ShopifyQueue(models.Model):
                     synced_data = eval(record.shopify_synced_data)
                     cancelled_at = synced_data.get('cancelled_at')
                     if cancelled_at is None:
-                        sale_order_obj._create_or_update_orders(synced_data, record.shopify_instance_id)
-                        record.state = "done"
+                        record_id = {'record': record}
+                        sale_order_obj._create_or_update_orders(synced_data, record.shopify_instance_id, **record_id)
                 except Exception as e:
                     record.state = "cancel"
                     log_id = shopify_connection._create_common_process_log("An error occurred while fetching order.", "sale.order", record, str(e))

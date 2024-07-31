@@ -4,6 +4,9 @@ from odoo import models, fields, api, _
 from odoo.exceptions import ValidationError
 import requests
 import json
+import logging
+
+_LOGGER = logging.getLogger(">>> Shopify Import Webhook <<<")
 
 
 class ShopifyWebhook(models.Model):
@@ -150,12 +153,11 @@ class ShopifyWebhook(models.Model):
                         log_line_id = shopify_connection._create_common_process_log_line(log_id, record.operations, record, response_data, f"Successfully deleted webhook from Shopify.", 'success')
                         return super(ShopifyWebhook, self).unlink()
                     else:
-                        raise ValidationError(
-                            f'Failed to delete the webhook.{response.text} HTTP Status Code: {response.status_code}')
+                        raise ValidationError(f'Failed to delete the webhook.{response.text} HTTP Status Code: {response.status_code}')
 
                 except Exception as e:
                     log_id = shopify_connection._create_common_process_log(f'Something went wrong while deleting the webhook {record.operations}', "shopify.webhook", record, str(e))
-                    log_line_id = shopify_connection._create_common_process_log_line(log_id, record.operations, record, response.text, 'Something went wrong while deleting the webhook', 'error')
+                    log_line_id = shopify_connection._create_common_process_log_line(log_id, record.operations, record, str(e), 'Something went wrong while deleting the webhook', 'error')
                     self._cr.commit()
                     raise ValidationError(
                         f'Something went wrong while deleting the webhook: {e}')

@@ -4,7 +4,7 @@ from odoo import models, fields, api, _
 import requests
 import logging
 
-_LOGGER = logging.getLogger(">>> Common Process Logs <<<")
+_logger = logging.getLogger(">>> Common Process Logs <<<")
 
 
 class ShopifyConnector(models.Model):

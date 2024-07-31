@@ -2,18 +2,49 @@
 
 from odoo import http
 from odoo.http import request
+import logging
+
+_LOGGER = logging.getLogger(">>> Shopify Connector <<<")
 
 
 class Main(http.Controller):
 
     def check_hook_details(self, route):
+        """
+            Checks the details of a Shopify webhook based on the provided route and logs relevant information.
+            Args: route (str): The route for the webhook to check.
+            Returns:
+                tuple: A tuple containing:
+                    - res (dict or bool): The simulated Shopify order details if the instance and webhook are valid; otherwise, False.
+                    - shopify_instance_id (recordset): The Shopify instance recordset.
+        """
+        _LOGGER.info("Received hook details request with route: %s", route)
         res = request.dispatcher.jsonrequest
+
+        # Fetch Shopify instance based on the host
         host = request.httprequest.headers.get("X-Shopify-Shop-Domain")
+        _LOGGER.info("Fetching Shopify instance with host: %s", host)
+
         shopify_instance_id = request.env["shopify.connector"].sudo().with_context(active_test=False).search(
             [("shopify_host", "ilike", host)], limit=1)
+        # Log the result of the Shopify instance search
+        if shopify_instance_id:
+            _LOGGER.info("Found Shopify instance: %s", shopify_instance_id.name)
+        else:
+            _LOGGER.warning("No Shopify instance found for host: %s", host)
+
         webhook_id = request.env["shopify.webhook"].sudo().search(
             [("base_url", "ilike", route), ("shopify_instance_id", "=", shopify_instance_id.id)], limit=1)
+        if webhook_id:
+            _LOGGER.info("Found webhook: %s", webhook_id.name)
+        else:
+            _LOGGER.warning("No webhook found for route: %s and instance ID: %s", route,
+                            shopify_instance_id.id if shopify_instance_id else 'None')
+
         if not shopify_instance_id.state == 'integrated' or not shopify_instance_id.active or not webhook_id.state == "active":
+            _LOGGER.info("Shopify instance or webhook is not active or integrated. Instance state: %s, Webhook state: %s",
+                shopify_instance_id.state if shopify_instance_id else 'None',
+                webhook_id.state if webhook_id else 'None')
             res = False
         return res, shopify_instance_id
 
@@ -28,11 +59,15 @@ class Main(http.Controller):
         """
         partner_obj = request.env['res.partner'].sudo()
         hook_route = request.httprequest.path.split('/')[1]
+        _LOGGER.info("Received webhook on route: %s", hook_route)
+
         res, shopify_instance_id = self.check_hook_details(hook_route)
         if not res:
-            return
+            _LOGGER.warning("Failed to verify webhook details for route: %s", hook_route)
+            return 'Webhook verification failed'
         try:
             data = res
+            _LOGGER.info("Processing webhook data: %s", data)
             # data = {'id': 7683885039821, 'email': None, 'created_at': '2024-06-25T07:30:29-04:00',
             #         'updated_at': '2024-06-25T07:30:29-04:00', 'first_name': 'DEMO', 'last_name': '3',
             #         'orders_count': 0,
@@ -54,10 +89,14 @@ class Main(http.Controller):
             # connector_obj = request.env['shopify.connector'].sudo()
             # con = connector_obj.browse(17)
             if data:
+                _LOGGER.info("Creating or updating customer with data: %s", data)
+
                 partner_obj._create_or_update_customer(data, shopify_instance_id)
+                _LOGGER.info("Customer data processed successfully.")
                 # partner_obj._create_or_update_customer(data, con)
             return 'Webhook received'
         except Exception as e:
+            _LOGGER.error("Exception occurred while processing customer webhook: %s", str(e), exc_info=True)
             return 'Webhook processing failed'
 
     @http.route(['/rcs_shopify_customer_delete_hook'], csrf=False, auth="public", type="json", methods=['POST'])
@@ -68,11 +107,16 @@ class Main(http.Controller):
             Returns:
                 str: Confirmation message indicating the webhook was received or processing failed.
         """
+        _LOGGER.info("Received request for customer deletion webhook.")
+
         res, shopify_instance_id = self.check_hook_details('/rcs_shopify_customer_delete_hook')
         if not res:
-            return
+            _LOGGER.warning("Failed to verify webhook details for /rcs_shopify_customer_delete_hook.")
+            return 'Webhook verification failed'
         try:
             data = res
+            _LOGGER.info("Processing delete request with data: %s", data)
+
             # data = {'id': 7683884155085, 'phone': None, 'addresses': [], 'tax_exemptions': [],
             #         'email_marketing_consent': None, 'sms_marketing_consent': None,
             #         'admin_graphql_api_id': 'gid://shopify/Customer/7683885039821'}
@@ -82,9 +126,11 @@ class Main(http.Controller):
             # con = connector_obj.browse(17)
             if data:
                 partner_obj.archive_customer_by_shopify_id(data, shopify_instance_id)
+                _LOGGER.info("Customer with Shopify ID %s successfully archived.")
                 # partner_obj.archive_customer_by_shopify_id(data, con)
             return 'Webhook received'
         except Exception as e:
+            _LOGGER.error("Exception occurred while processing customer delete webhook: %s", str(e), exc_info=True)
             return 'Webhook processing failed'
 
     @http.route(['/rcs_shopify_product_create_hook', '/rcs_shopify_product_update_hook'], csrf=False, auth="public", type="json", methods=['POST'])
@@ -95,12 +141,18 @@ class Main(http.Controller):
             Returns:
                 str: Confirmation message indicating the webhook was received or processing failed.
         """
+        _LOGGER.info("Received request for product create/update webhook: %s", request.httprequest.path)
+
         hook_route = request.httprequest.path.split('/')[1]
+        _LOGGER.info("Extracted hook route: %s", hook_route)
+
         res, shopify_instance_id = self.check_hook_details(hook_route)
         if not res:
-            return
+            _LOGGER.warning("Failed to verify webhook details for %s", hook_route)
+            return 'Webhook verification failed'
         try:
             data = res
+            _LOGGER.info("Processing product webhook with data: %s", data)
             # data = {
             #     'admin_graphql_api_id': 'gid://shopify/Product/8884439711949',
             #     'body_html': '',
@@ -447,9 +499,11 @@ class Main(http.Controller):
             # con = connector_obj.browse(17)
             if data:
                 product_tem_obj._create_or_update_product(data, shopify_instance_id)
+                _LOGGER.info("Product with Shopify ID %s successfully created or updated.", data.get('id'))
                 # product_tem_obj._create_or_update_product(data, con)
             return 'Webhook received'
         except Exception as e:
+            _LOGGER.error("Exception occurred while processing product webhook: %s", str(e), exc_info=True)
             return 'Webhook processing failed'
 
     @http.route(['/rcs_shopify_product_delete_hook'], csrf=False, auth="public", type="json", methods=['POST'])
@@ -460,11 +514,16 @@ class Main(http.Controller):
             Returns:
                 str: Confirmation message indicating the webhook was received or processing failed.
         """
+        _LOGGER.info("Received request for product delete webhook.")
+
         res, shopify_instance_id = self.check_hook_details('/rcs_shopify_product_delete_hook')
         if not res:
-            return
+            _LOGGER.warning("Failed to verify webhook details for /rcs_shopify_product_delete_hook")
+            return 'Webhook verification failed'
         try:
             data = res
+            _LOGGER.info("Processing product delete webhook with data: %s", data)
+
             # data = {'id': 8891545977037}
 
             product_tem_obj = request.env['product.template'].sudo()
@@ -472,9 +531,11 @@ class Main(http.Controller):
             # con = connector_obj.browse(17)
             if data:
                 product_tem_obj.archive_by_shopify_product_id(data, shopify_instance_id)
+                _LOGGER.info("Product with Shopify ID %s successfully marked as archived.")
                 # product_tem_obj.archive_by_shopify_product_id(data, con)
             return 'Webhook received'
         except Exception as e:
+            _LOGGER.error("Exception occurred while processing product delete webhook: %s", str(e), exc_info=True)
             return 'Webhook processing failed'
 
     @http.route(['/rcs_shopify_order_create_hook', '/rcs_shopify_order_update_hook'], csrf=False, auth="public", type="json", methods=['POST'])
@@ -485,18 +546,29 @@ class Main(http.Controller):
             Returns:
                 str: Confirmation message indicating the webhook was received or processing failed.
         """
+        _LOGGER.info("Received webhook request at route: %s", request.httprequest.path)
+
         hook_route = request.httprequest.path.split('/')[1]
+        _LOGGER.info("Extracted hook route: %s", hook_route)
+
         res, shopify_instance_id = self.check_hook_details(hook_route)
         if not res:
             return
         try:
             data = res
             sale_obj = request.env['sale.order'].sudo()
+            _LOGGER.info("Processing order data: %s", data)
+
             # connector_obj = request.env['shopify.connector'].sudo()
             # con = connector_obj.browse(17)
             if data:
+                _LOGGER.info("Creating or updating orders with data: %s", data)
+
                 # partner_obj.archive_by_shopify_product_id(data, shopify_instance_id)
                 sale_obj._create_or_update_orders(data, shopify_instance_id)
+
+            _LOGGER.info("Successfully processed webhook for route: %s", hook_route)
             return 'Webhook received'
         except Exception as e:
+            _LOGGER.error("Error processing webhook for route: %s, exception: %s", hook_route, str(e))
             return 'Webhook processing failed'
