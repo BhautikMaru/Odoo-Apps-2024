@@ -54,16 +54,26 @@ class ProductTemplate(models.Model):
             :param instance_id: Shopify instance ID to filter products.
             :return: True if archived successfully, False otherwise.
         """
+        shopify_connection = self.env['shopify.connector']
         product_id = shopify_product_id.get('id')
         _logger.info("Attempting to archive product with Shopify Product ID: %s", product_id)
-        products = self.search(
-            [('shopify_product_id', '=', product_id), ('shopify_instance_id', '=', instance_id.id)])
-        if products:
-            products.write({'active': False})
-            _logger.info("Successfully archived product(s) with Shopify Product ID: %s", product_id)
-            return True
-        _logger.info("No products found to archive with Shopify Product ID: %s", product_id)
-        return False
+        try:
+            products = self.search([('shopify_product_id', '=', product_id), ('shopify_instance_id', '=', instance_id.id)])
+            if products:
+                _logger.info("Found %d product(s) with Shopify Product ID: %s", len(products), product_id)
+                products.write({'active': False})
+                log_id = shopify_connection._create_common_process_log(f"Successfully archived product(s) with Shopify Product ID: {product_id}", "product.template", products, product_id)
+                log_line_id = shopify_connection._create_common_process_log_line(log_id, products.display_name, products, product_id, f"Product(s) with Shopify Product ID: {product_id} have been archived.", 'success')
+                _logger.info("Successfully archived product(s) with Shopify Product ID: %s", product_id)
+                return True
+            else:
+                _logger.info("No products found to archive with Shopify Product ID: %s", product_id)
+                return False
+        except Exception as e:
+            log_id = shopify_connection._create_common_process_log(f"Failed to archive product with Shopify Product ID: {product_id}", "product.template", None, str(e))
+            log_line_id = shopify_connection._create_common_process_log_line(log_id, 'Error', None, str(e), f"An error occurred while archiving product with Shopify Product ID: {product_id}. Error: {str(e)}", 'error')
+            _logger.error("An error occurred while attempting to archive product with Shopify Product ID: %s. Error: %s", product_id, str(e))
+            return False
 
     def _get_image_from_url(self, url):
         """

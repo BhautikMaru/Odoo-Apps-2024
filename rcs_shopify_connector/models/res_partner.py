@@ -4,7 +4,7 @@ from odoo.tools.misc import split_every
 import requests
 import logging
 
-_LOGGER = logging.getLogger(">>> Shopify Import Customer <<<")
+_logger = logging.getLogger(">>> Shopify Import Customer <<<")
 
 
 class ResPartner(models.Model):
@@ -62,15 +62,26 @@ class ResPartner(models.Model):
             :param instance_id: Shopify instance ID (shopify.connector record).
             :return: True if customer is archived successfully, False otherwise.
         """
-        _LOGGER.info("Attempting to archive customer with Shopify ID: %s", customer_data['id'])
-        partner = self.search([('shopify_customer_id', '=', customer_data['id']),
-                               ('shopify_instance_id', '=', instance_id.id)])
-        if partner:
-            _LOGGER.info("Found customer with Shopify ID: %s. Archiving customer...", customer_data['id'])
-            partner.write({'active': False})
-            _LOGGER.info("Customer with Shopify ID: %s successfully archived.", customer_data['id'])
-
-        return True
+        shopify_connection = self.env['shopify.connector']
+        customer_id = customer_data['id']
+        _logger.info("Attempting to archive customer with Shopify ID: %s",customer_id)
+        try:
+            partner = self.search([('shopify_customer_id', '=', customer_id), ('shopify_instance_id', '=', instance_id.id)])
+            if partner:
+                _logger.info("Found %d Customer with Shopify Customer ID: %s", len(partner), customer_id)
+                partner.write({'active': False})
+                log_id = shopify_connection._create_common_process_log( f"Successfully archived Customer with Shopify Customer ID: {customer_id}", "res.partner", partner, customer_id)
+                log_line_id = shopify_connection._create_common_process_log_line(log_id, partner.name, partner, customer_id, f"Customer with Shopify Customer ID: {customer_id} have been archived.", 'success')
+                _logger.info("Successfully archived Customer with Shopify Customer ID: %s", customer_id)
+                return True
+            else:
+                _logger.info("No Customer found to archive with Shopify Customer ID: %s", customer_id)
+                return False
+        except Exception as e:
+            log_id = shopify_connection._create_common_process_log(f"Failed to archive Customer with Shopify Customer ID: {customer_id}", "res.partner", None, str(e))
+            log_line_id = shopify_connection._create_common_process_log_line(log_id, 'Error', None, str(e), f"An error occurred while archiving Customer with Shopify Customer ID: {customer_id}. Error: {str(e)}", 'error')
+            _logger.error("An error occurred while attempting to archive Customer with Shopify Customer ID: %s. Error: %s", customer_id, str(e))
+            return False
 
     def _create_or_update_customer(self, customer_data, instance_id):
         """
@@ -109,17 +120,17 @@ class ResPartner(models.Model):
             }
             if not existing_partner:
                 existing_partner = self.create(vals)
-                _LOGGER.info("Successfully created customer '%s' from Shopify.", name)
+                _logger.info("Successfully created customer '%s' from Shopify.", name)
                 log_id = shopify_connection._create_common_process_log(f"Successfully created {name} customer from Shopify.", "res.partner", existing_partner, customer_data)
                 log_line_id = shopify_connection._create_common_process_log_line(log_id, name, existing_partner, customer_data, f"Successfully imported {name} customer from Shopify.", 'success')
             else:
                 existing_partner.write(vals)
-                _LOGGER.info("Successfully updated customer '%s' from Shopify.", name)
+                _logger.info("Successfully updated customer '%s' from Shopify.", name)
                 log_id = shopify_connection._create_common_process_log(f"Successfully update {name} customer from Shopify.", "res.partner", existing_partner, customer_data)
                 log_line_id = shopify_connection._create_common_process_log_line(log_id, name, existing_partner, customer_data, f"Successfully updated {name} customer from Shopify.", 'success')
             return existing_partner
         except Exception as e:
-            _LOGGER.error("An error occurred while creating or updating customer with Shopify ID '%s': %s", str(e), exc_info=True)
+            _logger.error("An error occurred while creating or updating customer with Shopify ID '%s': %s", str(e), exc_info=True)
             log_id = shopify_connection._create_common_process_log('An error occurred while creating customers from Shopify', "res.partner", customer_id, str(e))
             log_line_id = shopify_connection._create_common_process_log_line(log_id, 'Error', customer_id, str(e), 'Error: Customer created failed.', 'error')
             return partner_obj
@@ -138,14 +149,14 @@ class ResPartner(models.Model):
             "X-Shopify-Access-Token": instance_id.shopify_access_token
         }
         try:
-            _LOGGER.info("Fetching customers from Shopify with URL: %s", url)
+            _logger.info("Fetching customers from Shopify with URL: %s", url)
             response = requests.get(url, headers=headers)
             if response.status_code == 200:
                 customers = response.json().get('customers', [])
                 customer = response.json().get('customer', [])
                 if customer:
                     try:
-                        _LOGGER.info("Processing single customer data: %s", customer)
+                        _logger.info("Processing single customer data: %s", customer)
                         customer_id = partner_obj._create_or_update_customer(customer, instance_id)
                         return customer_id
                     except Exception as e:

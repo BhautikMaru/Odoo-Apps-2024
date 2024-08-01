@@ -86,9 +86,9 @@ class SaleOrder(models.Model):
         try:
             financial_status = order.get('financial_status')
             fulfillment_status = order.get('fulfillment_status')
-            payment_gateway_name = order.get('payment_gateway_names') or 'no_payment_gateway'
+            payment_gateway_name = order.get('payment_gateway_names') if order.get('payment_gateway_names') else ['no_payment_gateway']
             # Fetch automation settings based on financial status and instance
-            automation_settings = self._get_automation_settings(instance_id, financial_status, payment_gateway_name)
+            automation_settings = self._get_automation_settings(instance_id, financial_status, payment_gateway_name[0])
             payment_term_id = automation_settings.account_payment_term_id.id if automation_settings else False
             payment_gateway_id = automation_settings.shopify_payment_gateway_id.id if automation_settings else False
             shopify_order_id = order.get('id')
@@ -194,30 +194,39 @@ class SaleOrder(models.Model):
         :param automation_settings: Automation settings record (sale.order.automation).
         :param fulfillment_status: Status of the fulfillment ('fulfilled' or other).
         """
+        _logger.info("Processing automation settings for sale order %s with fulfillment status '%s'", sale_order.name, fulfillment_status)
         invoice = None
 
         if sale_order.state == "draft" and automation_settings.is_confirm_order:
+            _logger.info("Confirming sale order %s", sale_order.name)
             sale_order.action_confirm()
 
         if fulfillment_status == "fulfilled" and not sale_order.picking_ids.filtered(lambda p: p.state == 'done'):
+            _logger.info("Validating delivery for sale order %s", sale_order.name)
             self.validate_delivery(sale_order, automation_settings)
 
         if automation_settings.is_create_invoice and sale_order.state in ['sale', 'cancel']:
             if sale_order.invoice_status != 'invoiced':
+                _logger.info("Creating invoices for sale order %s", sale_order.name)
                 invoice = sale_order.with_context(default_journal_id=automation_settings.sale_journal_id.id)._create_invoices()
             else:
                 invoice = sale_order.invoice_ids.filtered(lambda inv: inv.state != 'cancel')[0] if sale_order.invoice_ids else None
+                _logger.info("Existing invoice found for sale order %s", sale_order.name)
 
         if invoice and automation_settings.is_validate_invoice and invoice.state == 'draft':
+            _logger.info("Validating invoice %s", invoice.name)
             invoice.action_post()
 
         if invoice and invoice.payment_state in ["not_paid", "partial"] and invoice.amount_residual != 0 and automation_settings.is_register_payment:
+            _logger.info("Registering payment for invoice %s", invoice.name)
             self._register_payment(invoice, automation_settings)
 
         if automation_settings.is_order_date_same_as_invoice_date:
+            _logger.info("Updating invoice date to sale order date for sale order %s", sale_order.name)
             sale_order.invoice_ids.filtered(lambda inv: inv.state != 'cancel').write({'invoice_date': sale_order.date_order})
 
         if sale_order.state == 'sale' and sale_order.locked != True and automation_settings.is_lock_order:
+            _logger.info("Locking sale order %s", sale_order.name)
             sale_order.action_lock()
 
     def validate_delivery(self, sale_order, automation_settings):
