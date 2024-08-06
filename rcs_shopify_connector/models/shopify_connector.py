@@ -55,6 +55,10 @@ class ShopifyConnector(models.Model):
         warehouse_id = stock_warehouse_obj.search([('company_id', '=', self.company_id.id)], limit=1, order='id')
         return warehouse_id.lot_stock_id.id if warehouse_id else False
 
+    def _default_discount_product(self):
+        discount_product = self.env.ref('rcs_shopify_connector.shopify_discount_product', False)
+        return discount_product
+
     active = fields.Boolean(default=True)
     company_id = fields.Many2one('res.company', string='Company', default=_get_set_default_company, required=True)
     warehouse_id = fields.Many2one('stock.warehouse', string='Warehouse', default=_get_set_default_warehouse)
@@ -78,6 +82,11 @@ class ShopifyConnector(models.Model):
     shopify_webhook_ids = fields.One2many("shopify.webhook", "shopify_instance_id", string="Shopify Webhooks", tracking=True, required=True)
     shopify_sale_order_process_ids = fields.One2many('shopify.sale.order.process.configuration', 'multi_shopify_connector_id', string="Order Process Configuration", tracking=True)
     location_id = fields.Many2one('stock.location', string='Location', default=_get_set_default_location_id, required=True)
+    discount_product_id = fields.Many2one("product.product", "Discount",
+                                          domain=[('detailed_type', '=', 'service')],
+                                          default=_default_discount_product, store=True, required=True,
+                                          help="This is used for set discount product in a sale order lines")
+    create_taxes = fields.Boolean("Create new tax If Not Found")
 
     @api.onchange('company_id')
     def _onchange_company_id(self):
@@ -239,5 +248,10 @@ class ShopifyConnector(models.Model):
         })
         return log_line
 
-
+    def action_shopify_active_archive_instance(self):
+        for record in self:
+            if record.active == True:
+                record.write({'active': False})
+            else:
+                record.write({'active': True})
 

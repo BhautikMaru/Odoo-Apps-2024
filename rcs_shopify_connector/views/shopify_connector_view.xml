@@ -26,7 +26,8 @@
                 <field name="name"/>
                 <filter name="archive" string="Archived" domain="[('active','=',False)]"/>
                 <group expand="0" string="Group By...">
-                    <filter name="warehouse" string="Warehouse" icon="terp-personal" context="{'group_by':'warehouse_id'}"/>
+                    <filter name="warehouse" string="Warehouse" icon="terp-personal"
+                            context="{'group_by':'warehouse_id'}"/>
                 </group>
             </search>
         </field>
@@ -37,7 +38,7 @@
         <field name="name">shopify.connector.form.view</field>
         <field name="model">shopify.connector</field>
         <field name="arch" type="xml">
-            <form string="Shopify Connector"  duplicate="0">
+            <form string="Shopify Connector" duplicate="0">
                 <header>
                     <button name="shopify_connection_action" string="Test Connection" class="btn oe_highlight"
                             icon="fa-play" type="object" invisible="state != 'draft'"/>
@@ -47,6 +48,17 @@
                     <field name="state" widget="statusbar" statusbar_visible="draft,integrated,error"/>
                 </header>
                 <sheet>
+                    <widget name="web_ribbon" title="Archived" bg_color="text-bg-danger" invisible="active"/>
+                    <div class="oe_button_box" name="button_box">
+                        <button class="oe_stat_button"
+                                name="action_shopify_active_archive_instance" icon="fa-unlock"
+                                type="object" invisible="active in [False]" string="Activate">
+                        </button>
+                        <button class="oe_stat_button"
+                                name="action_shopify_active_archive_instance" icon="fa-lock"
+                                type="object" invisible="active in [True]" string="Deactivate">
+                        </button>
+                    </div>
                     <div class="oe_title">
                         <b>
                             <label for="name" string="Connector Name :"/>
@@ -60,21 +72,26 @@
                             <group>
                                 <group>
                                     <field name="shopify_api_key" readonly="state in ['integrated','error']"/>
-                                    <field name="shopify_api_secret_key" password="1" readonly="state in ['integrated','error']"/>
-                                    <field name="shopify_access_token" />
+                                    <field name="shopify_api_secret_key" password="1"
+                                           readonly="state in ['integrated','error']"/>
+                                    <field name="shopify_access_token"/>
                                 </group>
                                 <group>
                                     <field name="shopify_host" readonly="state in ['integrated','error']"/>
-                                    <field name="version_control" widget="selection" readonly="state in ['integrated','error']"/>
+                                    <field name="version_control" widget="selection"
+                                           readonly="state in ['integrated','error']"/>
                                     <field name="shopify_store_time_zone"/>
+                                    <field name="active" invisible="1"/>
                                 </group>
                             </group>
                         </page>
                         <page string="Common Setup" name="common_setup">
-                            <group>
+
+                            <group string="General Setting">
                                 <group>
                                     <field name="company_id" readonly="state in ['integrated','error']"/>
                                     <field name="currency_id" readonly="state in ['integrated','error']"/>
+                                    <field name="create_taxes"/>
                                 </group>
                                 <group>
                                     <field name="warehouse_id" readonly="state in ['integrated','error']"/>
@@ -82,10 +99,16 @@
                                     <field name="lang_id" readonly="state in ['integrated','error']"/>
                                 </group>
                             </group>
+                            <group string="Default Product">
+                                <group>
+                                    <field name="discount_product_id"/>
+                                </group>
+                            </group>
                         </page>
-                         <page string="Order Process Setup" name="Order_Process_setup">
+                        <page string="Order Process Setup" name="Order_Process_setup">
                             <group>
-                                <field name="shopify_sale_order_process_ids" nolabel="1" colspan="2" readonly="state in 'error'">
+                                <field name="shopify_sale_order_process_ids" nolabel="1" colspan="2"
+                                       readonly="state in 'error'">
                                     <tree editable="bottom" delete="True">
                                         <field name="account_payment_term_id"/>
                                         <field name="shopify_payment_gateway_id"
@@ -113,7 +136,7 @@
                         </page>
                     </notebook>
                 </sheet>
-                 <div class="oe_chatter">
+                <div class="oe_chatter">
                     <field name="message_follower_ids"/>
                     <field name="activity_ids"/>
                     <field name="message_ids"/>
@@ -130,7 +153,8 @@
         <field name="help" type="html">
             <p class="o_view_nocontent_neutral_face">
                 Create a shopify instance, the first step of a shopify integration!
-            </p><p>
+            </p>
+            <p>
                 Once the shopify instance is integrated, you will abel to perfrom all shopify opeartions.
             </p>
         </field>

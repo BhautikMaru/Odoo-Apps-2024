@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--Create a shopify discount product-->
+        <record id="shopify_discount_product" model="product.product">
+            <field name="name">Shopify Discount Product</field>
+            <field name="type">service</field>
+            <field name="default_code">ShopifyDISC</field>
+            <field name="invoice_policy">order</field>
+        </record>
+</odoo>

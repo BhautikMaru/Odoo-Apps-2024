@@ -12,6 +12,7 @@
         'security/ir.model.access.csv',
         'data/ir_sequence_data.xml',
         'data/ir_cron_data.xml',
+        'data/ir_data.xml',
         'views/shopify_dashboard_view.xml',
         'views/shopify_queue_manage_line_view.xml',
         'views/shopify_queue_manage_view.xml',

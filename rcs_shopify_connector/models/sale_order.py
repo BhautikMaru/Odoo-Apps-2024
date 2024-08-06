@@ -3,7 +3,7 @@ import time
 import requests
 import logging
 from pytz import utc
-from odoo import models, fields, api, _
+from odoo import Command, _, api, fields, models
 from dateutil import parser
 from odoo.tools.misc import split_every
 
@@ -96,65 +96,82 @@ class SaleOrder(models.Model):
             shopify_customer_id = order.get('customer').get('id') if order.get('customer') else ''
             date_order = self.convert_order_date(order)
             partner_id = self._get_partner_id(shopify_customer_id, instance_id)
+            tax_lines = order.get("tax_lines") if order.get("tax_lines") else False
             taxes_included = order.get("taxes_included") or False
+            search_taxes = self._get_or_create_taxes(tax_lines, taxes_included, instance_id.company_id, instance_id.create_taxes)
 
             _logger.info("Processing order: %s, Shopify order ID: %s", name, shopify_order_id)
 
             res_id = None
+            taxes_id = False
             if partner_id:
-                sale_order_vals = {
-                    'partner_id': partner_id.id,
-                    'is_shopify_order': True,
-                    'shopify_order_id': shopify_order_id,
-                    'shopify_instance_id': instance_id.id,
-                    'date_order': date_order,
-                    'company_id': instance_id.company_id.id,
-                    'payment_term_id': payment_term_id,
-                    'shopify_payment_gateway_id': payment_gateway_id
+                if tax_lines and search_taxes:
+                    taxes_id = True
+                else:
+                    if not tax_lines:
+                        taxes_id = True
+                if taxes_id:
+                    sale_order_vals = {
+                        'partner_id': partner_id.id,
+                        'is_shopify_order': True,
+                        'shopify_order_id': shopify_order_id,
+                        'shopify_instance_id': instance_id.id,
+                        'date_order': date_order,
+                        'company_id': instance_id.company_id.id,
+                        'payment_term_id': payment_term_id,
+                        'shopify_payment_gateway_id': payment_gateway_id
 
-                }
-                existing_order = self.search(
-                    [('shopify_order_id', '=', shopify_order_id), ('shopify_instance_id', '=', instance_id.id)], limit=1)
+                    }
+                    existing_order = self.search(
+                        [('shopify_order_id', '=', shopify_order_id), ('shopify_instance_id', '=', instance_id.id)], limit=1)
 
-                if existing_order:
-                    _logger.info("Found existing order: %s", existing_order.name)
-                    if existing_order.state in ['sale', 'cancel']:
-                        log_id = shopify_connection._create_common_process_log(f"Successfully update {name} order from Shopify.", "sale.order", existing_order, order)
-                        log_line_id = shopify_connection._create_common_process_log_line(log_id, name, existing_order, order, f"Successfully updated {name} order from Shopify.", 'success')
-                        _logger.info(f"Successfully update {name} order from Shopify.", order)
+                    if existing_order:
+                        _logger.info("Found existing order: %s", existing_order.name)
+                        if existing_order.state in ['sale', 'cancel']:
+                            log_id = shopify_connection._create_common_process_log(f"Successfully update {name} order from Shopify.", "sale.order", existing_order, order)
+                            log_line_id = shopify_connection._create_common_process_log_line(log_id, name, existing_order, order, f"Successfully updated {name} order from Shopify.", 'success')
+                            _logger.info(f"Successfully update {name} order from Shopify.", order)
+                        else:
+                            existing_order.write(sale_order_vals)
+                            log_id = shopify_connection._create_common_process_log(f"Successfully update {name} order from Shopify.", "sale.order", existing_order, order)
+                            log_line_id = shopify_connection._create_common_process_log_line(log_id, name, existing_order, order, f"Successfully updated {name} order from Shopify.", 'success')
+                            _logger.info(f"Successfully update {name} order from Shopify.", order)
                     else:
-                        existing_order.write(sale_order_vals)
-                        log_id = shopify_connection._create_common_process_log(f"Successfully update {name} order from Shopify.", "sale.order", existing_order, order)
-                        log_line_id = shopify_connection._create_common_process_log_line(log_id, name, existing_order, order, f"Successfully updated {name} order from Shopify.", 'success')
-                        _logger.info(f"Successfully update {name} order from Shopify.", order)
+                        existing_order = self.create(sale_order_vals)
+                        log_id = shopify_connection._create_common_process_log(f"Successfully created {name} order from Shopify.", "sale.order", existing_order, order)
+                        log_line_id = shopify_connection._create_common_process_log_line(log_id, name, existing_order, order, f"Successfully created {name} order from Shopify.", 'success')
+                        _logger.info(f"Successfully created {name} order from Shopify.", order)
+
+                    line_items = order.get('line_items')
+                    if existing_order.state not in ["sale", "cancel"]:
+                        _logger.info("Creating or updating sale order lines for order: %s", existing_order.name)
+                        order_line = self._create_sale_order_line(existing_order, line_items, taxes_included,  instance_id, log_id, order)
+
+                    if automation_settings:
+                        _logger.info("Processing automation settings for order: %s", existing_order.name)
+                        self._process_automation_settings(existing_order, automation_settings.rcs_sale_order_automation_id, fulfillment_status)
+
+                    if kwargs.get('record'):
+                        kwargs.get('record').state = 'done'
+                        _logger.info("Order processed successfully, record state set to 'done': %s", existing_order.name)
+                        return existing_order
+                    else:
+                        _logger.info("Order processed successfully.", existing_order.name)
+                        return existing_order
                 else:
-                    existing_order = self.create(sale_order_vals)
-                    log_id = shopify_connection._create_common_process_log(f"Successfully created {name} order from Shopify.", "sale.order", existing_order, order)
-                    log_line_id = shopify_connection._create_common_process_log_line(log_id, name, existing_order, order, f"Successfully created {name} order from Shopify.", 'success')
-                    _logger.info(f"Successfully created {name} order from Shopify.", order)
-
-                line_items = order.get('line_items')
-                if existing_order.state not in ["sale", "cancel"]:
-                    _logger.info("Creating or updating sale order lines for order: %s", existing_order.name)
-                    order_line = self._create_sale_order_line(existing_order, line_items, order.get('tax_lines', []), taxes_included,  instance_id, log_id)
-
-                if automation_settings:
-                    _logger.info("Processing automation settings for order: %s", existing_order.name)
-                    self._process_automation_settings(existing_order, automation_settings.rcs_sale_order_automation_id, fulfillment_status)
-
-                if kwargs.get('record'):
-                    kwargs.get('record').state = 'done'
-                    _logger.info("Order processed successfully, record state set to 'done': %s", existing_order.name)
-                    return existing_order
-                else:
-                    _logger.info("Order processed successfully.", existing_order.name)
-                    return existing_order
+                    log_id = shopify_connection._create_common_process_log( f"Failed to fetch orders from Shopify because {name} order Taxes is not set and if you create taxes to bloolean is true", "sale.order", res_id, order)
+                    log_line_id = shopify_connection._create_common_process_log_line(log_id, 'Error', res_id, order, f"Failed to fetch sale order from Shopify.", 'error')
+                    _logger.warning("Failed to fetch orders from Shopify because customer is not set for order: %s", name)
+                    if kwargs.get('record'):
+                        kwargs.get('record').state = 'cancel'
+                        return sale_order
+                    else:
+                        return sale_order
 
             else:
                 log_id = shopify_connection._create_common_process_log(f"Failed to fetch orders from Shopify because {name} order customer is not set", "sale.order", res_id, order)
                 log_line_id = shopify_connection._create_common_process_log_line(log_id, 'Error', res_id, order, f"Failed to fetch sale order from Shopify.", 'error')
                 _logger.warning("Failed to fetch orders from Shopify because customer is not set for order: %s", name)
-
                 if kwargs.get('record'):
                     kwargs.get('record').state = 'cancel'
                     return sale_order
@@ -305,7 +322,7 @@ class SaleOrder(models.Model):
                     if variant.shopify_variant_id == str(shopify_variant_id):
                         return variant
 
-    def _create_sale_order_line(self, existing_order_id, line_items, tax_lines, taxes_included, instance_id, log_id):
+    def _create_sale_order_line(self, existing_order_id, line_items, taxes_included, instance_id, log_id, order):
         """
             Create sale order lines based on Shopify order line items.
             :param existing_order_id: Sale order record.
@@ -317,6 +334,7 @@ class SaleOrder(models.Model):
         """
         shopify_connection = self.env['shopify.connector']
         sale_order_line_obj = self.env["sale.order.line"]
+        total_discount = order.get("total_discounts", 0.0)
         existing_order_line = None
         for line in line_items:
             name = None
@@ -326,8 +344,9 @@ class SaleOrder(models.Model):
                 name = line.get('name')
                 price = line.get('price')
                 company = instance_id.company_id
+                create_taxes = instance_id.create_taxes
                 product_id = self._get_product_id(line.get('product_id'), line.get('variant_id'), instance_id)
-                taxes = self._get_or_create_taxes(tax_lines, taxes_included, company)
+                taxes = self._get_or_create_taxes(line.get('tax_lines', []), taxes_included, company, create_taxes)
 
                 order_line_vals = {
                     "order_id": existing_order_id.id,
@@ -348,11 +367,16 @@ class SaleOrder(models.Model):
                 else:
                     existing_order_line = sale_order_line_obj.create(order_line_vals)
                     log_line_id = shopify_connection._create_common_process_log_line(log_id, name, existing_order_line, line, f"Successfully created {name} order line from Shopify.", 'success')
+                    if float(total_discount) > 0.0:
+                        discount_amount = 0.0
+                        for discount_allocation in line.get("discount_allocations"):
+                            discount_amount += float(discount_allocation.get("amount"))
+                        self.create_discount_order_line(discount_amount, name, taxes, instance_id, existing_order_id)
 
             except Exception as e:
                 log_line_id = shopify_connection._create_common_process_log_line(log_id, name, existing_order_line, str(e), f"Failed to created {name} order line from Shopify.", 'error')
 
-    def _get_or_create_taxes(self, tax_lines, tax_included, company):
+    def _get_or_create_taxes(self, tax_lines, tax_included, company, create_taxes):
         """
             Retrieve or create taxes based on Shopify tax lines.
             :param tax_lines: Tax lines from Shopify order.
@@ -362,28 +386,58 @@ class SaleOrder(models.Model):
         """
         tax_obj = self.env['account.tax']
         tax_ids = []
-        for tax_line in tax_lines:
-            rate = float(tax_line.get("rate", 0.0))
-            rate = rate * 100
-            price = float(tax_line.get('price', 0.0))
-            title = tax_line.get("title")
-            if rate != 0.0 and price != 0.0:
-                if tax_included:
-                    name = "%s_(%s %s included)" % (title, str(rate), "%")
-                else:
-                    name = "%s_(%s %s excluded)" % (title, str(rate), "%")
-                tax = self.env["account.tax"].search([("price_include", "=", tax_included),
-                                                      ("type_tax_use", "=", "sale"), ("amount", "=", rate),
-                                                      ("name", "=", name), ("company_id", "=", company.id)], limit=1)
-                if not tax:
-                    tax = tax_obj.create({
-                        'name': name,
-                        'amount': rate,
-                        'type_tax_use': 'sale',
-                        'amount_type': 'percent',
-                    })
-                tax_ids.append(tax.id)
-        return tax_obj.browse(tax_ids)
+        if tax_lines:
+            for tax_line in tax_lines:
+                rate = float(tax_line.get("rate", 0.0))
+                rate = rate * 100
+                price = float(tax_line.get('price', 0.0))
+                title = tax_line.get("title")
+                if rate != 0.0 and price != 0.0:
+                    if tax_included:
+                        name = "%s_(%s %s included)" % (title, str(rate), "%")
+                    else:
+                        name = "%s_(%s %s excluded)" % (title, str(rate), "%")
+                    tax = self.env["account.tax"].search([("price_include", "=", tax_included),
+                                                          ("type_tax_use", "=", "sale"), ("amount", "=", rate),
+                                                          ("name", "=", name), ("company_id", "=", company.id)], limit=1)
+                    if not tax and create_taxes == True:
+                        tax = tax_obj.create({
+                            'name': name,
+                            'amount': rate,
+                            'type_tax_use': 'sale',
+                            'amount_type': 'percent',
+                        })
+                    tax_ids.append(tax.id)
+            if any(tax_id is False for tax_id in tax_ids):
+                return False
+            return tax_obj.browse(tax_ids)
+        else:
+            return tax_obj
+
+    def _prepare_discount_order_line_values(self, product, amount, taxes, order, description=None):
+        vals = {
+            'order_id': order.id,
+            'product_id': product.id,
+            'price_unit': -amount,
+            'tax_id': [Command.set(taxes.ids)],
+        }
+        if description:
+            # If not given, name will fallback on the standard SOL logic (cf. _compute_name)
+            vals['name'] = description
+        return vals
+
+    def create_discount_order_line(self, product_discount, name, taxes, instance_id, existing_order_id):
+        discount_product = instance_id.discount_product_id
+        vals_list = [
+            self._prepare_discount_order_line_values(
+                product=discount_product,
+                amount=product_discount,
+                taxes=taxes,
+                order=existing_order_id,
+                description=name,
+            )
+        ]
+        discount_order_line = self.env['sale.order.line'].create(vals_list)
 
     def import_shopify_orders(self, url_status, instance_id):
         """
